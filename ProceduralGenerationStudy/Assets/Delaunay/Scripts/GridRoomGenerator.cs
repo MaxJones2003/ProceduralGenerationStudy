@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TriangleNet.Geometry;
+using MinSpanTree;
 public class GridRoomGenerator
 {
     private int width, height, maxRoomWidth, maxRoomHeight, maxNumOfRooms, minRoomWidthHeight;
@@ -197,6 +198,37 @@ public class GridRoomGenerator
 
         return (edges, corners);
     }   
+    
+    private (double, double, double, double) PickDoor(Room room1, Room room2) // Returns a double for the x and y of each door position
+    {
+        // Go through each door and compare the distance, pick the two doors with the least distance
+        float leastDistance = 100000000;
+        int room1Door = 0;
+        int room2Door = 0;
+        for(int room1DoorIndex = 0; room1DoorIndex < room1.doors.Count; room1DoorIndex++)
+        {
+            Vector2 room1CurrentDoorPosition = room1.doors[room1DoorIndex];
+            for(int room2DoorIndex = 0; room2DoorIndex < room2.doors.Count; room2DoorIndex++)
+            {
+                Vector2 room2CurrentDoorPosition = room2.doors[room2DoorIndex];
+                float distance = Vector2.Distance(room1CurrentDoorPosition, room2CurrentDoorPosition);
+                if(distance < leastDistance)
+                {
+                    leastDistance = distance;
+                    room1Door = room1DoorIndex;
+                    room2Door = room2DoorIndex;
+                    //Debug.Log(room1Door + " " + room2Door);
+                }
+            }
+        }
+
+        double x1 = room1.doors[room1Door].x;
+        double y1 = room1.doors[room1Door].y;
+        double x2 = room2.doors[room2Door].x;
+        double y2 = room2.doors[room2Door].y;
+
+        return (x1, y1, x2, y2);
+    }
 
     private List<Vector2Int> PickDoorsForRoom(Dictionary<string, Vector2Int> corners)
     {
@@ -205,20 +237,20 @@ public class GridRoomGenerator
         // pick a random edge tile from each wall. Use the Room corners dictionary to define a wall
         
         Vector2Int topDoor = new Vector2Int(
-            Random.Range(corners["TopLeft"].x + 1, corners["TopRight"].x - 2), // Use 1 for the first value and 2 for the second because the first value already excludes that number (I dont want a door with 2 gridspaces of a corner)
+            Random.Range(corners["TopLeft"].x + 3, corners["TopRight"].x - 4), // Use 1 for the first value and 2 for the second because the first value already excludes that number (I dont want a door with 2 gridspaces of a corner)
             corners["TopLeft"].y
         );
         Vector2Int leftDoor = new Vector2Int(
             corners["TopLeft"].x,
-            Random.Range(corners["TopLeft"].y - 1, corners["BottomLeft"].y + 2)
+            Random.Range(corners["TopLeft"].y - 3, corners["BottomLeft"].y + 4)
         );
         Vector2Int bottomDoor = new Vector2Int(
-            Random.Range(corners["BottomLeft"].x + 1, corners["BottomRight"].x - 2), // Use 1 for the first value and 2 for the second because the first value already excludes that number (I dont want a door with 2 gridspaces of a corner)
+            Random.Range(corners["BottomLeft"].x + 3, corners["BottomRight"].x - 4), // Use 1 for the first value and 2 for the second because the first value already excludes that number (I dont want a door with 2 gridspaces of a corner)
             corners["BottomLeft"].y
         );
         Vector2Int rightDoor = new Vector2Int(
             corners["TopRight"].x,
-            Random.Range(corners["TopRight"].y - 1, corners["BottomRight"].y + 2)
+            Random.Range(corners["TopRight"].y - 3, corners["BottomRight"].y + 4)
         );
 
         doors.Add(topDoor);
@@ -228,6 +260,39 @@ public class GridRoomGenerator
         
         return doors;
     } 
+
+    public List<Hallway> FixRoomConnections(List<Edge<Vertex>> edges, Dictionary<Vertex, int> roomnumberVertexDictionary, List<Room> rooms)
+    {
+        // This function changes the from and to vertex of an edge from the center of a room to the door of a room
+        List<Hallway> hallways = new List<Hallway>();
+        foreach(Edge<Vertex> edge in edges)
+        {
+            Room room1 =  new Room();
+            Room room2 =  new Room();
+
+            if(roomnumberVertexDictionary.ContainsKey(edge.From.Data))
+            {
+                room1 = rooms[roomnumberVertexDictionary[edge.From.Data]];
+            }
+            if(roomnumberVertexDictionary.ContainsKey(edge.To.Data))
+            {
+                room2 = rooms[roomnumberVertexDictionary[edge.To.Data]];
+            }
+
+            if(room1 != null && room2 != null)
+            {
+                double fromX, fromY, toX, toY;
+                (fromX, fromY, toX, toY) = PickDoor(room1, room2);
+                Hallway hallway = new Hallway();
+                hallway.From = new Vector2Int((int)fromX, (int)fromY);
+                hallway.To = new Vector2Int((int)toX, (int)toY);
+                hallways.Add(hallway);
+            }
+        }
+
+        return hallways;
+    }
+
 }
 public class Room
 {

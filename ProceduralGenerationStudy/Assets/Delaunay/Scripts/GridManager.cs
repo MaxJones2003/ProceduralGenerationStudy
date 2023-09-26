@@ -12,6 +12,8 @@ using System.Linq;
 
 public class GridManager : MonoBehaviour
 {
+    [SerializeField] private Material floorMaterial;
+    [SerializeField] private Material wallMaterial;
     public GameObject tempPrefab;
     public GameObject spherePrefab; // Prefab for the sphere
     public Material lineMaterial1; // Material for the line renderer
@@ -39,7 +41,10 @@ public class GridManager : MonoBehaviour
 
     public GameObject vertexPrefab; // Assign a prefab to visualize vertices
     public Color edgeColor = Color.white;
-    void Start()
+    private void Start() {
+        Generate();
+    }
+    void Generate()
     {
         roomGenerator = new GridRoomGenerator(gridWidth, gridHeight, maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
         rooms = roomGenerator.GenerateRooms();
@@ -57,8 +62,17 @@ public class GridManager : MonoBehaviour
         allEdges.AddRange(edgesForLoops);
 
         // Now call the function that Picks the doors that the edge will connect its rooms from (for each edge)
-        List<Hallway> hallways = FixRoomConnections(allEdges);
-        //hallways = DetermineMultiConnectionHallways(hallways);
+        List<Hallway> hallways = roomGenerator.FixRoomConnections(allEdges, roomnumberVertexDictionary, rooms);
+        /* HallwayPathfinder hallwayPathFinder = new HallwayPathfinder();
+        foreach(Hallway hallway in hallways)
+        {
+            hallway.HallwayGridPositions = hallwayPathFinder.CreateHallwayPath(hallway);
+            foreach (Vector2Int pos in hallway.HallwayGridPositions)
+            {
+                Vector3 position = new Vector3(pos.x, 3f, pos.y);
+                Instantiate(vertexPrefab, position, Quaternion.identity);
+            }
+        } */
 
         DrawNodes(graph.Nodes);
         //DrawEdges(allEdges, lineMaterial1);
@@ -73,21 +87,39 @@ public class GridManager : MonoBehaviour
 
             GameObject roomGo = Instantiate(tempPrefab, new Vector3(room.roomCenterPosition.x, 0, room.roomCenterPosition.y), Quaternion.identity);
             roomGo.name = room.roomNumber.ToString();
+
+            GameObject roomFloorGo = new GameObject();
+            roomFloorGo.transform.position = new Vector3(room.roomCenterPosition.x, 0, room.roomCenterPosition.y);
+            roomFloorGo.transform.parent = roomGo.transform;
+            roomFloorGo.name = "Floor";
+            roomFloorGo.AddComponent<MeshFilter>();
+            roomFloorGo.AddComponent<MeshRenderer>().material = floorMaterial;
+
+            GameObject roomWallGo = new GameObject();
+            roomWallGo.transform.position = new Vector3(room.roomCenterPosition.x, 0, room.roomCenterPosition.y);
+            roomWallGo.transform.parent = roomGo.transform;
+            roomWallGo.name = "Walls";
+            roomWallGo.AddComponent<MeshFilter>();
+            roomWallGo.AddComponent<MeshRenderer>().material = wallMaterial;
+
             foreach(Vector2Int roomTile in room.roomGridPositions)
             {
                 GameObject roomTileGo = Instantiate(tempPrefab, new Vector3(roomTile.x, -1, roomTile.y), Quaternion.identity);
                 string roomName = "(" + roomTile.x + ", " + roomTile.y + ")";
                 roomTileGo.name = roomName;
-                roomTileGo.transform.parent = roomGo.transform;
+                roomTileGo.transform.parent = roomFloorGo.transform;
                 
             }
+            CombineFloorMeshes(roomFloorGo);
             foreach(Vector2Int edgeTile in room.roomEdges)
             {
                 GameObject edgeTileGo = Instantiate(tempPrefab, new Vector3(edgeTile.x, 0, edgeTile.y), Quaternion.identity);
                 string roomName = "(" + edgeTile.x + ", " + edgeTile.y + ")";
                 edgeTileGo.name = roomName;
-                edgeTileGo.transform.parent = roomGo.transform;
+                edgeTileGo.transform.parent = roomWallGo.transform;
+                edgeTileGo.GetComponent<Renderer>().material = wallMaterial;
             }
+            CombineFloorMeshes(roomWallGo);
             //Instantiate(tempPrefab, new Vector3(room.corners["TopLeft"]. x, 0, room.corners["TopLeft"].y), Quaternion.identity);
             foreach (Vector2Int door in room.doors)
             {
@@ -97,6 +129,10 @@ public class GridManager : MonoBehaviour
                 doorGo.transform.parent = roomGo.transform;
             }
         }
+
+        Pathfinder pathfinder = new Pathfinder();
+        pathfinder.GetAllGridPositions(new Vector2(gridWidth, gridHeight), rooms);
+        
     }   
     public TriangleNet.Meshing.IMesh TriangulatePositions(List<Room> rooms)
     {
@@ -125,7 +161,6 @@ public class GridManager : MonoBehaviour
 
         return mesh;
     }
-
     private List<Edge<Vertex>> GenerateMST(TriangleNet.Meshing.IMesh mesh, List<Room> rooms)
     {
         // Find all the edges, take note of each ones point int value (P0, P1)
@@ -178,7 +213,6 @@ public class GridManager : MonoBehaviour
 
         return graph.MinimumSpanningTreeKruskal();
     }
-
     private List<Edge<Vertex>> PickLoopEdges(List<Edge<Vertex>> edges, List<Edge<Vertex>> mstEdges)
     {
         foreach (Edge<Vertex> edge in edges)
@@ -199,7 +233,6 @@ public class GridManager : MonoBehaviour
 
         return addEdges;
     }
-
     private List<Hallway> FixRoomConnections(List<Edge<Vertex>> edges)
     {
         // This function changes the from and to vertex of an edge from the center of a room to the door of a room
@@ -262,33 +295,24 @@ public class GridManager : MonoBehaviour
 
         return (x1, y1, x2, y2);
     }
-    private List<Hallway> DetermineMultiConnectionHallways(List<Hallway> hallways)
+    
+    private void CombineFloorMeshes(GameObject roomGo)
     {
-        // Create a new dictionary of hallways with the "From" as the key
-        Dictionary<Vector2Int, Hallway> hallwayDictionary = new Dictionary<Vector2Int, Hallway>();
-        
-        foreach (Hallway hallway in hallways)
+        MeshFilter[] meshFilters = roomGo.GetComponentsInChildren<MeshFilter>();
+        CombineInstance[] combine = new CombineInstance[meshFilters.Length];
+
+        for (int i = 0; i < meshFilters.Length; i++)
         {
-            if (hallwayDictionary.ContainsKey(hallway.From))
-            {
-                // Merge the current hallway with the existing one if a key collision occurs
-                Hallway existingHallway = hallwayDictionary[hallway.From];
-                // Remove the existing hallway by key, then re-add the modified one
-                hallwayDictionary.Remove(existingHallway.From);
-                // Merge the existing hallway with the new one
-                existingHallway.Merge(hallway);
-            }
-            else
-            {
-                // Add the hallway to the dictionary if the key doesn't exist
-                hallwayDictionary.Add(hallway.From, hallway);
-            }
+            combine[i].mesh = meshFilters[i].sharedMesh;
+            combine[i].transform = meshFilters[i].transform.localToWorldMatrix * roomGo.transform.worldToLocalMatrix;
+            meshFilters[i].gameObject.SetActive(false);
+            //Destroy(meshFilters[i].gameObject)
         }
-
-        // Convert the dictionary values back to a list
-        List<Hallway> mergedHallways = new List<Hallway>(hallwayDictionary.Values);
-
-        return mergedHallways;
+        
+        UnityEngine.Mesh mesh = new UnityEngine.Mesh();
+        mesh.CombineMeshes(combine);
+        roomGo.transform.GetComponent<MeshFilter>().sharedMesh = mesh;
+        roomGo.SetActive(true);
     }
     private void DrawNodes(List<Node<Vertex>> nodes)
     {
@@ -360,7 +384,6 @@ public class GridManager : MonoBehaviour
             }
         }
     }
-
     private void DrawHallwaysNew(List<Hallway> hallways, Material lineMaterial)
     {
         foreach (Hallway hallway in hallways)
