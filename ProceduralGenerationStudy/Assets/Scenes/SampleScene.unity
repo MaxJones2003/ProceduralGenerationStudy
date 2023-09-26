@@ -354,16 +354,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90f0b0bbae6dc424db32938a5149b312, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  floorMaterial: {fileID: 2100000, guid: 45fb1a080cdaf2c43adf3881003a068e, type: 2}
+  wallMaterial: {fileID: 2100000, guid: 3d97fd3182c62a447bbfb31a461254a5, type: 2}
   tempPrefab: {fileID: 8954687975053509086, guid: 3fb4dd518096c4044835b21359bb0afc, type: 3}
   spherePrefab: {fileID: 8662989054291066489, guid: 9549164a17809bd4c9694eef6a47ee8f, type: 3}
-  lineMaterial: {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
+  lineMaterial1: {fileID: 2100000, guid: 088cc0558815bb849b8da68e107ad4eb, type: 2}
+  lineMaterial2: {fileID: 2100000, guid: 41e6ce6075fe3ad49a7be3d5ec04ef8c, type: 2}
   gridWidth: 100
   gridHeight: 100
   maxRoomWidth: 25
   maxRoomHeight: 25
   minRoomWidthHeight: 10
   maxRooms: 10
-  maxHallLength: 50
+  maxHallLength: 200
+  percentOfEdgesToReAdd: 10
   vertexPrefab: {fileID: 8662989054291066489, guid: 9549164a17809bd4c9694eef6a47ee8f, type: 3}
   edgeColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!114 &1277829834
