@@ -10,6 +10,8 @@ using TriangleNet.Meshing;
 using MinSpanTree;
 using System.Linq;
 
+using Pathfinding;
+
 public class GridManager : MonoBehaviour
 {
     [SerializeField] private Material floorMaterial;
