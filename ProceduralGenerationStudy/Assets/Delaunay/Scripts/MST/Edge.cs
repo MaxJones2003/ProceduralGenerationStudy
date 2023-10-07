@@ -4,6 +4,13 @@ using UnityEngine;
 
 namespace MinSpanTree
 {
+    /// <summary>
+    /// An Edge is what connects nodes in a Minimum Spanning Tree. It does not represent the edge of a room, rather, the edge of the shape made through connecting the node positions.
+    /// </summary>
+    /// <typeparam name="T"></typeparam> <summary>
+    /// 
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class Edge<T> 
     { 
         public Node<T> From { get; set; } 

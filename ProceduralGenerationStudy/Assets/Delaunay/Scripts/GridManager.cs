@@ -10,8 +10,6 @@ using TriangleNet.Meshing;
 using MinSpanTree;
 using System.Linq;
 
-using Pathfinding;
-
 public class GridManager : MonoBehaviour
 {
     [SerializeField] private Material floorMaterial;
@@ -21,8 +19,6 @@ public class GridManager : MonoBehaviour
     public Material lineMaterial1; // Material for the line renderer
     public Material lineMaterial2; // Material for loops
 
-    public int gridWidth = 100;
-    public int gridHeight = 100;
     public int maxRoomWidth = 10, maxRoomHeight = 10;
     public int minRoomWidthHeight = 6;
     public int maxRooms = 10;
@@ -30,28 +26,30 @@ public class GridManager : MonoBehaviour
     public float maxHallLength = 100f;
 
     private GridRoomGenerator roomGenerator;
-    List<Room> rooms = new List<Room>();
+    List<Room> rooms = new();
 
     // Minimum Spanning Tree Variables
-    Graph<Vertex> graph = new Graph<Vertex>(false, true); 
-    Dictionary<int, Node<Vertex>> nodes = new Dictionary<int, Node<Vertex>>();
+    Graph<Vertex> graph = new Graph<Vertex>(false, true);
+    readonly Dictionary<int, Node<Vertex>> nodes = new();
     List<Edge<Vertex>> edgesForLoops = new List<Edge<Vertex>>();
     public float percentOfEdgesToReAdd = 10;
     // Use to find the node of a room by first finding the vertex, the room number, the room number should be the key to the node list
-    Dictionary<Vertex, int> roomnumberVertexDictionary = new Dictionary<Vertex, int>(); 
+    readonly Dictionary<Vertex, int> roomnumberVertexDictionary = new(); 
 
 
     public GameObject vertexPrefab; // Assign a prefab to visualize vertices
     public Color edgeColor = Color.white;
+
+    [SerializeField] private Pathfinder pathfinder;
     private void Start() {
         Generate();
     }
     void Generate()
     {
-        roomGenerator = new GridRoomGenerator(gridWidth, gridHeight, maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
+        roomGenerator = new GridRoomGenerator(maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
         rooms = roomGenerator.GenerateRooms();
 
-        GenerateRoom(rooms);
+        BuildRooms(rooms);
         var mesh = TriangulatePositions(rooms);
         
         List<Edge<Vertex>> mst = GenerateMST(mesh, rooms);
@@ -59,29 +57,56 @@ public class GridManager : MonoBehaviour
         edgesForLoops = PickLoopEdges(edgesForLoops, mst);
 
         // Now we have all the rooms and we know what rooms should be connected. First, lets combine the list of edges created by MST and the recovered edges that make loops.
-        List<Edge<Vertex>> allEdges = new List<Edge<Vertex>>();
+        List<Edge<Vertex>> allEdges = new();
         allEdges.AddRange(mst);
         allEdges.AddRange(edgesForLoops);
 
         // Now call the function that Picks the doors that the edge will connect its rooms from (for each edge)
         List<Hallway> hallways = roomGenerator.FixRoomConnections(allEdges, roomnumberVertexDictionary, rooms);
-        /* HallwayPathfinder hallwayPathFinder = new HallwayPathfinder();
+
+        hallways = MergeHallways(hallways);
+
+
+        HallwayPathfinder hallwayPathFinder = new(rooms);
         foreach(Hallway hallway in hallways)
         {
-            hallway.HallwayGridPositions = hallwayPathFinder.CreateHallwayPath(hallway);
-            foreach (Vector2Int pos in hallway.HallwayGridPositions)
-            {
-                Vector3 position = new Vector3(pos.x, 3f, pos.y);
-                Instantiate(vertexPrefab, position, Quaternion.identity);
-            }
-        } */
+            // Set up grids for each hallway. The grid will allow a pathfinder to roam.
+            hallway.HallwayGridPositions = hallwayPathFinder.SetUpGrid(hallway);
+            // Pathfind on the grid.
+            hallwayPathFinder.Search(hallway);
+        }
+        
 
         DrawNodes(graph.Nodes);
-        //DrawEdges(allEdges, lineMaterial1);
-        DrawHallwaysNew(hallways, lineMaterial2);
+        
+        //DrawHallwaysNew(hallways, lineMaterial2);
         //DrawEdges(edgesForLoops, lineMaterial2);
     }
-    public void GenerateRoom(List<Room> rooms)
+    private List<Hallway> MergeHallways(List<Hallway> hallways)
+    {
+        List<Hallway> hallwaysToRemove = new();
+        foreach(var hallway in hallways)
+        {
+            if(hallwaysToRemove.Contains(hallway)) break;
+            var hallwayFrom = hallway.From;
+            var hallwayTo = hallway.To;
+            foreach(var otherHallway in hallways)
+            {
+                var otherHallwayFrom = otherHallway.From;
+                var otherHallwayTo = otherHallway.To;
+                if(hallwayFrom == otherHallwayFrom && hallwayTo != otherHallwayTo)
+                {
+                    hallway.Merge(otherHallway);
+
+                    hallwaysToRemove.Add(otherHallway);
+                }
+            }
+        }
+        foreach (Hallway hall in hallwaysToRemove)
+            hallways.Remove(hall);
+        return hallways;
+    }
+    public void BuildRooms(List<Room> rooms)
     {
         foreach (Room room in rooms)
         {
@@ -132,8 +157,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        Pathfinder pathfinder = new Pathfinder();
-        pathfinder.GetAllGridPositions(new Vector2(gridWidth, gridHeight), rooms);
+        
         
     }   
     public TriangleNet.Meshing.IMesh TriangulatePositions(List<Room> rooms)
@@ -297,7 +321,6 @@ public class GridManager : MonoBehaviour
 
         return (x1, y1, x2, y2);
     }
-    
     private void CombineFloorMeshes(GameObject roomGo)
     {
         MeshFilter[] meshFilters = roomGo.GetComponentsInChildren<MeshFilter>();
@@ -316,6 +339,24 @@ public class GridManager : MonoBehaviour
         roomGo.transform.GetComponent<MeshFilter>().sharedMesh = mesh;
         roomGo.SetActive(true);
     }
+
+    /* private Dictionary<Vector2Int, bool> SetUpGridDictionaryForPathfinding()
+    {
+        Dictionary<Vector2Int, bool> dictionary = new();
+        for(int x = 0; x < gridWidth; x++)
+            for(int y = 0; y < gridHeight; y++)
+                dictionary.Add(new Vector2Int(x, y), false);
+        foreach (Room room in rooms)
+        {
+            foreach (Vector2Int position in room.roomGridPositions)
+            {
+                if(!room.roomEdges.Contains(position))
+                    dictionary[position] = true;
+            }
+        }
+
+        return dictionary;
+    } */
     private void DrawNodes(List<Node<Vertex>> nodes)
     {
         foreach (Node<Vertex> node in nodes)
@@ -342,7 +383,7 @@ public class GridManager : MonoBehaviour
             lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
         }
     }
-    private void DrawHallways(List<Hallway> hallways, Material lineMaterial)
+    /* private void DrawHallways(List<Hallway> hallways, Material lineMaterial)
     {
         foreach (Hallway hallway in hallways)
         {
@@ -424,5 +465,5 @@ public class GridManager : MonoBehaviour
                 lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
             }
         }
-    }
+    } */
 }

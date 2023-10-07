@@ -14,6 +14,10 @@ namespace TriangleNet.Geometry
     /// </summary>
     public class Vertex : Point
     {
+        public override string ToString()
+        {
+            return $"{x} {y}";
+        }
         // Hash for dictionary. Will be set by mesh instance.
         internal int hash;
 
