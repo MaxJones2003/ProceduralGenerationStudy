@@ -481,13 +481,11 @@ MonoBehaviour:
   spherePrefab: {fileID: 8662989054291066489, guid: 9549164a17809bd4c9694eef6a47ee8f, type: 3}
   lineMaterial1: {fileID: 2100000, guid: 088cc0558815bb849b8da68e107ad4eb, type: 2}
   lineMaterial2: {fileID: 2100000, guid: 41e6ce6075fe3ad49a7be3d5ec04ef8c, type: 2}
-  gridWidth: 400
-  gridHeight: 400
   maxRoomWidth: 25
   maxRoomHeight: 25
   minRoomWidthHeight: 10
   maxRooms: 10
-  maxHallLength: 200
+  maxHallLength: 100
   percentOfEdgesToReAdd: 10
   vertexPrefab: {fileID: 8662989054291066489, guid: 9549164a17809bd4c9694eef6a47ee8f, type: 3}
   edgeColor: {r: 1, g: 1, b: 1, a: 1}
@@ -504,7 +502,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcdabf2064f642f41b62a40c9aec55fb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GameSeed: default
+  GameSeed: ku,yhjfrht
   CurrentSeed: 0
 --- !u!114 &1277829835
 MonoBehaviour:
@@ -520,7 +518,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   seeker: {fileID: 0}
   target: {fileID: 0}
-  grid: {fileID: 0}
+  grid: {fileID: 1720165934}
   GridOwner: {fileID: 1720165932}
 --- !u!1 &1720165932
 GameObject:

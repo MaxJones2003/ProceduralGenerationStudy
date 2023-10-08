@@ -15,6 +15,8 @@ public class Hallway
 
     // Created with a pathfinder
     public List<HallGridPosition> HallwayGridPositions; 
+    public HallGridPosition[,] HallwayGridPositionsCopy;
+    public List<Vector2Int> Path;
 
     public void Merge(Hallway hallwayToMergeWith)
     {

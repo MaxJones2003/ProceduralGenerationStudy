@@ -49,7 +49,6 @@ public class GridManager : MonoBehaviour
         roomGenerator = new GridRoomGenerator(maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
         rooms = roomGenerator.GenerateRooms();
 
-        BuildRooms(rooms);
         var mesh = TriangulatePositions(rooms);
         
         List<Edge<Vertex>> mst = GenerateMST(mesh, rooms);
@@ -73,10 +72,12 @@ public class GridManager : MonoBehaviour
             // Set up grids for each hallway. The grid will allow a pathfinder to roam.
             hallway.HallwayGridPositions = hallwayPathFinder.SetUpGrid(hallway);
             // Pathfind on the grid.
-            hallwayPathFinder.Search(hallway);
+            hallway.Path = hallwayPathFinder.Search(hallway, ref hallway.HallwayGridPositions);
+            if(hallway.Path.Count == 0) Debug.LogError("Path Count is 0.");
         }
         
 
+        BuildRooms(rooms, hallways);
         DrawNodes(graph.Nodes);
         
         //DrawHallwaysNew(hallways, lineMaterial2);
@@ -106,7 +107,7 @@ public class GridManager : MonoBehaviour
             hallways.Remove(hall);
         return hallways;
     }
-    public void BuildRooms(List<Room> rooms)
+    public void BuildRooms(List<Room> rooms, List<Hallway> hallways)
     {
         foreach (Room room in rooms)
         {
@@ -157,7 +158,20 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        
+        foreach (Hallway hallway in hallways)
+        {
+            GameObject hallwayGo = new();
+            hallwayGo.transform.position = new Vector3((hallway.From.x + hallway.To.x)/2, 0, (hallway.From.y + hallway.To.y)/2);
+            hallwayGo.name = "Hallway " + hallway.fromRoomNumber.ToString() + " to " + hallway.toRoomNumber.ToString();
+            foreach(Vector2Int pos in hallway.Path)
+            {
+                GameObject hallTileGo = Instantiate(tempPrefab, new Vector3(pos.x, 0, pos.y), Quaternion.identity);
+                string name = $"Hallway: ({pos.x}, {pos.y})";
+                hallTileGo.name = name;
+                hallTileGo.transform.parent = hallwayGo.transform;
+                hallTileGo.GetComponent<Renderer>().material.color = Color.red;
+            }
+        }
         
     }   
     public TriangleNet.Meshing.IMesh TriangulatePositions(List<Room> rooms)
@@ -366,6 +380,7 @@ public class GridManager : MonoBehaviour
             sphere.name = node.Index.ToString();
         }
     }
+    
     private void DrawEdges(List<Edge<Vertex>> edges, Material lineMaterial)
     {
         foreach (Edge<Vertex> edge in edges)

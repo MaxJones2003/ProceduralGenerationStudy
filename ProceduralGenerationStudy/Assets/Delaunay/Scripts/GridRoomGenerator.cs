@@ -60,8 +60,8 @@ public class GridRoomGenerator
                 if (chooseRight) horzDirection = new Vector2Int(1, 0);
                 else horzDirection = new Vector2Int(-1, 0);
 
-                int moveVertAmount = UnityEngine.Random.Range(newRoom.roomHeight / 2 + lastRoom.roomHeight / 2, newRoom.roomHeight / 2 + lastRoom.roomHeight + 20);
-                int moveHorzAmount = UnityEngine.Random.Range(newRoom.roomWidth / 2 + lastRoom.roomWidth / 2, newRoom.roomWidth / 2 + lastRoom.roomWidth + 20);
+                int moveVertAmount = UnityEngine.Random.Range(newRoom.roomHeight / 2 + lastRoom.roomHeight / 2, newRoom.roomHeight / 2 + lastRoom.roomHeight + 10);
+                int moveHorzAmount = UnityEngine.Random.Range(newRoom.roomWidth / 2 + lastRoom.roomWidth / 2, newRoom.roomWidth / 2 + lastRoom.roomWidth + 10);
 
                 vertDirection *= moveVertAmount;
                 horzDirection *= moveHorzAmount;
