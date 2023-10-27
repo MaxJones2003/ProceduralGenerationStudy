@@ -14,8 +14,6 @@ public class Hallway
     // The pathfinding algorithm should connect the from and to points, then branch off from the newly created hall to any extra locations
 
     // Created with a pathfinder
-    public List<HallGridPosition> HallwayGridPositions; 
-    public HallGridPosition[,] HallwayGridPositionsCopy;
     public List<Vector2Int> Path;
 
     public void Merge(Hallway hallwayToMergeWith)
@@ -40,9 +38,9 @@ public class Hallway
             {
                 multiConnectionString += "Room Number: " + value.Key.ToString() + " Position: " + value.Value + " ";
             }
-            return $"Multi-Connection Hallway ({multiConnectionString}) Number of Positions in the Grid: {HallwayGridPositions.Count}";
+            return $"Multi-Connection Hallway ({multiConnectionString}) Number of Positions in the Path: {Path.Count}";
         }
         else
-            return $"From Room Number: {fromRoomNumber} Position: {From} To Room Number: {toRoomNumber} Position: {To} Number of Positions in the Grid: {HallwayGridPositions.Count}";
+            return $"From Room Number: {fromRoomNumber} Position: {From} To Room Number: {toRoomNumber} Position: {To} Number of Positions in the Path: {Path.Count}";
     }
 }

@@ -77,7 +77,8 @@ public class GridManager : MonoBehaviour
     private void Start() {
         Generate();
     }
-    void Generate()
+    
+    public void Generate()
     {
         roomGenerator = new GridRoomGenerator(maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
         rooms = roomGenerator.GenerateRooms();
@@ -414,24 +415,6 @@ public class GridManager : MonoBehaviour
         roomGo.transform.GetComponent<MeshFilter>().sharedMesh = mesh;
         roomGo.SetActive(true);
     }
-
-    /* private Dictionary<Vector2Int, bool> SetUpGridDictionaryForPathfinding()
-    {
-        Dictionary<Vector2Int, bool> dictionary = new();
-        for(int x = 0; x < gridWidth; x++)
-            for(int y = 0; y < gridHeight; y++)
-                dictionary.Add(new Vector2Int(x, y), false);
-        foreach (Room room in rooms)
-        {
-            foreach (Vector2Int position in room.roomGridPositions)
-            {
-                if(!room.roomEdges.Contains(position))
-                    dictionary[position] = true;
-            }
-        }
-
-        return dictionary;
-    } */
     private void DrawNodes(List<Node<Vertex>> nodes)
     {
         foreach (Node<Vertex> node in nodes)
@@ -441,105 +424,4 @@ public class GridManager : MonoBehaviour
             sphere.name = node.Index.ToString();
         }
     }
-    
-    private void DrawEdges(List<Edge<Vertex>> edges, Material lineMaterial)
-    {
-        foreach (Edge<Vertex> edge in edges)
-        {
-            Vector3 fromPosition = new Vector3((float)edge.From.Data.x, 0f, (float)edge.From.Data.y);
-            Vector3 toPosition = new Vector3((float)edge.To.Data.x, 0f, (float)edge.To.Data.y);
-
-            // Create a line renderer and set its positions
-            GameObject lineObject = new GameObject("Line");
-            LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
-            lineRenderer.material = lineMaterial;
-            lineRenderer.startWidth = 0.1f;
-            lineRenderer.endWidth = 0.1f;
-            lineRenderer.positionCount = 2;
-            lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
-        }
-    }
-    /* private void DrawHallways(List<Hallway> hallways, Material lineMaterial)
-    {
-        foreach (Hallway hallway in hallways)
-        {
-            Vector3 fromPosition = new Vector3(hallway.From.x, 0f, hallway.From.y);
-            Vector3 toPosition = new Vector3(hallway.To.x, 0f, hallway.To.y);
-
-            // Create a line renderer and set its positions
-            GameObject lineObject = new GameObject("HallwayLine");
-            LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
-            lineRenderer.material = lineMaterial;
-            lineRenderer.startWidth = 0.1f;
-            lineRenderer.endWidth = 0.1f;
-
-            if (hallway.MultiConnectionHall)
-            {
-                // Calculate the midpoint between From and To
-                Vector2Int midpoint = new Vector2Int(
-                    (hallway.From.x + hallway.To.x) / 2,
-                    (hallway.From.y + hallway.To.y) / 2
-                );
-
-                Vector3 midpointPosition = new Vector3(midpoint.x, 0f, midpoint.y);
-
-                // Create two lines: From to midpoint and midpoint to merged To
-                lineRenderer.positionCount = 2;
-                lineRenderer.SetPositions(new Vector3[] { fromPosition, midpointPosition });
-
-                GameObject secondLineObject = new GameObject("HallwayLine");
-                LineRenderer secondLineRenderer = secondLineObject.AddComponent<LineRenderer>();
-                secondLineRenderer.material = lineMaterial;
-                secondLineRenderer.startWidth = 0.1f;
-                secondLineRenderer.endWidth = 0.1f;
-                secondLineRenderer.positionCount = 2;
-                secondLineRenderer.SetPositions(new Vector3[] { midpointPosition, toPosition });
-            }
-            else
-            {
-                // For non-multi-connection hallways, just draw a line from From to To
-                lineRenderer.positionCount = 2;
-                lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
-            }
-        }
-    }
-    private void DrawHallwaysNew(List<Hallway> hallways, Material lineMaterial)
-    {
-        foreach (Hallway hallway in hallways)
-        {
-            if (hallway.MultiConnectionHall)
-            {
-                // If it's a multi-connection hallway with at least 2 points, create lines between them
-                for (int i = 0; i < hallway.MultiConnectionPointList.Count - 1; i++)
-                {
-                    Vector3 fromPosition = new Vector3(hallway.MultiConnectionPointList[i].x, 1f, hallway.MultiConnectionPointList[i].y);
-                    Vector3 toPosition = new Vector3(hallway.MultiConnectionPointList[i + 1].x, 1f, hallway.MultiConnectionPointList[i + 1].y);
-
-                    // Create a line renderer and set its positions
-                    GameObject lineObject = new GameObject("HallwayLine");
-                    LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
-                    lineRenderer.material = lineMaterial;
-                    lineRenderer.startWidth = 0.1f;
-                    lineRenderer.endWidth = 0.1f;
-                    lineRenderer.positionCount = 2;
-                    lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
-                }
-            }
-            else
-            {
-                // For non-multi-connection hallways, just draw a line from From to To
-                Vector3 fromPosition = new Vector3(hallway.From.x, 1f, hallway.From.y);
-                Vector3 toPosition = new Vector3(hallway.To.x, 1f, hallway.To.y);
-
-                // Create a line renderer and set its positions
-                GameObject lineObject = new GameObject("HallwayLine");
-                LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
-                lineRenderer.material = lineMaterial;
-                lineRenderer.startWidth = 0.1f;
-                lineRenderer.endWidth = 0.1f;
-                lineRenderer.positionCount = 2;
-                lineRenderer.SetPositions(new Vector3[] { fromPosition, toPosition });
-            }
-        }
-    } */
 }
