@@ -5,7 +5,7 @@ using UnityEngine.Tilemaps;
 
 
 
-public class Grid2D : MonoBehaviour 
+/* public class Grid2D : MonoBehaviour 
 {
     public Vector3 gridWorldSize;
     public float nodeRadius = 0.5f;
@@ -89,7 +89,7 @@ public class Grid2D : MonoBehaviour
         //checks and adds bottom left neighbor
         if (node.GridX - 1 >= 0 && node.GridX - 1 < gridSizeX && node.GridY  - 1>= 0 && node.GridY  - 1 < gridSizeY)
             neighbors.Add(Grid[node.GridX - 1, node.GridY - 1]);
-        */
+
 
 
 
@@ -128,4 +128,4 @@ public class Grid2D : MonoBehaviour
             }
         }
     }
-}
+} */

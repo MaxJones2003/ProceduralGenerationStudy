@@ -31,6 +31,7 @@ public class GridRoomGenerator
 
         // Encompas in a while loops to produce rooms until the max num of rooms is produced
         int attempts = 0;
+
         while (numOfRooms <= numOfRoomsToMake && attempts < 10 + numOfRoomsToMake)
         {
             Room newRoom = new();

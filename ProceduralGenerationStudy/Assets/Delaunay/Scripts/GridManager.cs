@@ -5,13 +5,15 @@ using UnityEngine;
 using TriangleNet;
 using TriangleNet.Meshing.Algorithm;
 using TriangleNet.Geometry;
-using TriangleNet.Meshing;
 
 using MinSpanTree;
 using System.Linq;
 
+using Pathfinding;
+
 public class GridManager : MonoBehaviour
 {
+    private static GridManager _instance;
     [SerializeField] private Material floorMaterial;
     [SerializeField] private Material wallMaterial;
     public GameObject tempPrefab;
@@ -41,6 +43,37 @@ public class GridManager : MonoBehaviour
     public Color edgeColor = Color.white;
 
     [SerializeField] private Pathfinder pathfinder;
+
+    public static GridManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindObjectOfType<GridManager>();
+                if (_instance == null)
+                {
+                    GameObject singletonObject = new GameObject("GridManager");
+                    _instance = singletonObject.AddComponent<GridManager>();
+                }
+            }
+            return _instance;
+        }
+    }
+
+    private void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+        }
+        else if (_instance != this)
+        {
+            Destroy(this.gameObject);
+        }
+    }
+
+    
     private void Start() {
         Generate();
     }
@@ -60,19 +93,19 @@ public class GridManager : MonoBehaviour
         allEdges.AddRange(mst);
         allEdges.AddRange(edgesForLoops);
 
+        
+        GenerateHallwayGridMap(rooms, out Dictionary<Vector2Int, PathNode> map);
+       
+
         // Now call the function that Picks the doors that the edge will connect its rooms from (for each edge)
         List<Hallway> hallways = roomGenerator.FixRoomConnections(allEdges, roomnumberVertexDictionary, rooms);
 
-        hallways = MergeHallways(hallways);
+        MergeHallways(ref hallways);
 
-
-        HallwayPathfinder hallwayPathFinder = new(rooms);
+        Pathfinder pathfinder = new();
         foreach(Hallway hallway in hallways)
         {
-            // Set up grids for each hallway. The grid will allow a pathfinder to roam.
-            hallway.HallwayGridPositions = hallwayPathFinder.SetUpGrid(hallway);
-            // Pathfind on the grid.
-            hallway.Path = hallwayPathFinder.Search(hallway, ref hallway.HallwayGridPositions);
+            hallway.Path = pathfinder.Search(hallway, map);
             if(hallway.Path.Count == 0) Debug.LogError("Path Count is 0.");
         }
         
@@ -83,7 +116,35 @@ public class GridManager : MonoBehaviour
         //DrawHallwaysNew(hallways, lineMaterial2);
         //DrawEdges(edgesForLoops, lineMaterial2);
     }
-    private List<Hallway> MergeHallways(List<Hallway> hallways)
+
+    private void GenerateHallwayGridMap(List<Room> rooms, out Dictionary<Vector2Int, PathNode> map)
+    {
+        map = rooms
+            .SelectMany(room => room.roomGridPositions)
+            .Distinct()
+            .ToDictionary(position => position, _ => new PathNode(_, true));
+        Debug.Log("Map Count before entire grid "+ map.Count);
+        
+         // Find the bottom leftmost and top rightmost Vector2Int using lambda expressions
+        Vector2Int bottomLeft = rooms.SelectMany(room => room.roomGridPositions).Aggregate((min, current) =>
+        {
+            return new Vector2Int(Mathf.Min(min.x, current.x), Mathf.Min(min.y, current.y));
+        });
+        
+        Vector2Int topRight = rooms.SelectMany(room => room.roomGridPositions).Aggregate((max, current) =>
+        {
+            return new Vector2Int(Mathf.Max(max.x, current.x), Mathf.Max(max.y, current.y));
+        });
+        for(int x = bottomLeft.x; x < topRight.x; x++)
+            for(int y = bottomLeft.y; y < topRight.y; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                if(!map.ContainsKey(pos))
+                    map.Add(pos, new PathNode(pos, false));
+            }
+    }
+
+    private List<Hallway> MergeHallways(ref List<Hallway> hallways)
     {
         List<Hallway> hallwaysToRemove = new();
         foreach(var hallway in hallways)
