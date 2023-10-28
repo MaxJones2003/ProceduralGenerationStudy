@@ -8,11 +8,17 @@ public class GridManagerEditor : Editor
 {
     public override void OnInspectorGUI()
         {
-            GridManager mapPreview = (GridManager)target;
+            GridManager gridManager = (GridManager)target;
 
             if(GUILayout.Button("Generate"))
             {
-                mapPreview.Generate();
+                gridManager.Generate();
             }
+            if(GUILayout.Button("Generate Random"))
+            {
+                Seed.Instance.RandomizeSeed();
+                gridManager.Generate();
+            }
+            base.OnInspectorGUI();
         }
 }

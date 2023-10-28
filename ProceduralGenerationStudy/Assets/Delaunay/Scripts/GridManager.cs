@@ -10,6 +10,7 @@ using MinSpanTree;
 using System.Linq;
 
 using Pathfinding;
+using Unity.VisualScripting;
 
 public class GridManager : MonoBehaviour
 {
@@ -32,11 +33,11 @@ public class GridManager : MonoBehaviour
 
     // Minimum Spanning Tree Variables
     Graph<Vertex> graph = new Graph<Vertex>(false, true);
-    readonly Dictionary<int, Node<Vertex>> nodes = new();
+    Dictionary<int, Node<Vertex>> nodes = new();
     List<Edge<Vertex>> edgesForLoops = new List<Edge<Vertex>>();
     public float percentOfEdgesToReAdd = 10;
     // Use to find the node of a room by first finding the vertex, the room number, the room number should be the key to the node list
-    readonly Dictionary<Vertex, int> roomnumberVertexDictionary = new(); 
+    Dictionary<Vertex, int> roomnumberVertexDictionary = new(); 
 
 
     public GameObject vertexPrefab; // Assign a prefab to visualize vertices
@@ -60,6 +61,7 @@ public class GridManager : MonoBehaviour
             return _instance;
         }
     }
+    [HideInInspector] public GameObject dungeonParent;
 
     private void Awake()
     {
@@ -80,6 +82,16 @@ public class GridManager : MonoBehaviour
     
     public void Generate()
     {
+        if(dungeonParent != null)
+            DestroyImmediate(dungeonParent);
+        dungeonParent = null;
+        Seed.Instance.InitializeSeed();
+        rooms = new();
+        graph = new Graph<Vertex>(false, true);
+        nodes = new();
+        new List<Edge<Vertex>>();
+        roomnumberVertexDictionary = new(); 
+
         roomGenerator = new GridRoomGenerator(maxRoomWidth, maxRoomHeight, minRoomWidthHeight, maxRooms);
         rooms = roomGenerator.GenerateRooms();
 
@@ -112,10 +124,6 @@ public class GridManager : MonoBehaviour
         
 
         BuildRooms(rooms, hallways);
-        DrawNodes(graph.Nodes);
-        
-        //DrawHallwaysNew(hallways, lineMaterial2);
-        //DrawEdges(edgesForLoops, lineMaterial2);
     }
 
     private void GenerateHallwayGridMap(List<Room> rooms, out Dictionary<Vector2Int, PathNode> map)
@@ -171,11 +179,14 @@ public class GridManager : MonoBehaviour
     }
     public void BuildRooms(List<Room> rooms, List<Hallway> hallways)
     {
+        GameObject dungeonParent = new();
+        dungeonParent.name = "Dungeon Parent";
+        this.dungeonParent = dungeonParent;
+                
         foreach (Room room in rooms)
         {
-            
-
             GameObject roomGo = Instantiate(tempPrefab, new Vector3(room.roomCenterPosition.x, 0, room.roomCenterPosition.y), Quaternion.identity);
+            roomGo.transform.parent = dungeonParent.transform;
             roomGo.name = room.roomNumber.ToString();
 
             GameObject roomFloorGo = new GameObject();
@@ -183,14 +194,14 @@ public class GridManager : MonoBehaviour
             roomFloorGo.transform.parent = roomGo.transform;
             roomFloorGo.name = "Floor";
             roomFloorGo.AddComponent<MeshFilter>();
-            roomFloorGo.AddComponent<MeshRenderer>().material = floorMaterial;
+            roomFloorGo.AddComponent<MeshRenderer>().sharedMaterial = floorMaterial;
 
             GameObject roomWallGo = new GameObject();
             roomWallGo.transform.position = new Vector3(room.roomCenterPosition.x, 0, room.roomCenterPosition.y);
             roomWallGo.transform.parent = roomGo.transform;
             roomWallGo.name = "Walls";
             roomWallGo.AddComponent<MeshFilter>();
-            roomWallGo.AddComponent<MeshRenderer>().material = wallMaterial;
+            roomWallGo.AddComponent<MeshRenderer>().sharedMaterial = wallMaterial;
 
             foreach(Vector2Int roomTile in room.roomGridPositions)
             {
@@ -200,39 +211,37 @@ public class GridManager : MonoBehaviour
                 roomTileGo.transform.parent = roomFloorGo.transform;
                 
             }
-            CombineFloorMeshes(roomFloorGo);
             foreach(Vector2Int edgeTile in room.roomEdges)
             {
+                if(room.doors.Contains(edgeTile)) continue;
                 GameObject edgeTileGo = Instantiate(tempPrefab, new Vector3(edgeTile.x, 0, edgeTile.y), Quaternion.identity);
                 string roomName = "(" + edgeTile.x + ", " + edgeTile.y + ")";
                 edgeTileGo.name = roomName;
                 edgeTileGo.transform.parent = roomWallGo.transform;
-                edgeTileGo.GetComponent<Renderer>().material = wallMaterial;
+                edgeTileGo.GetComponent<Renderer>().sharedMaterial = wallMaterial;
             }
-            CombineFloorMeshes(roomWallGo);
-            //Instantiate(tempPrefab, new Vector3(room.corners["TopLeft"]. x, 0, room.corners["TopLeft"].y), Quaternion.identity);
-            foreach (Vector2Int door in room.doors)
-            {
-                GameObject doorGo = Instantiate(tempPrefab, new Vector3(door.x, 1, door.y), Quaternion.identity);
-                string roomName = "(" + door.x + ", " + door.y + ")";
-                doorGo.name = roomName;
-                doorGo.transform.parent = roomGo.transform;
-            }
+            
+            CombineRoomMesh(roomFloorGo, Color.grey);
+            CombineRoomMesh(roomWallGo, Color.black);
         }
 
         foreach (Hallway hallway in hallways)
         {
             GameObject hallwayGo = new();
+            hallwayGo.transform.parent = dungeonParent.transform;
             hallwayGo.transform.position = new Vector3((hallway.From.x + hallway.To.x)/2, 0, (hallway.From.y + hallway.To.y)/2);
             hallwayGo.name = "Hallway " + hallway.fromRoomNumber.ToString() + " to " + hallway.toRoomNumber.ToString();
+            hallwayGo.AddComponent<MeshFilter>();
+            hallwayGo.AddComponent<MeshRenderer>().sharedMaterial = floorMaterial;
             foreach(Vector2Int pos in hallway.Path)
             {
                 GameObject hallTileGo = Instantiate(tempPrefab, new Vector3(pos.x, 0, pos.y), Quaternion.identity);
                 string name = $"Hallway: ({pos.x}, {pos.y})";
                 hallTileGo.name = name;
                 hallTileGo.transform.parent = hallwayGo.transform;
-                hallTileGo.GetComponent<Renderer>().material.color = Color.red;
+                hallTileGo.GetComponent<Renderer>().sharedMaterial.color = Color.red;
             }
+            CombineRoomMesh(hallwayGo, Color.grey);
         }
         
     }   
@@ -267,7 +276,7 @@ public class GridManager : MonoBehaviour
     {
         // Find all the edges, take note of each ones point int value (P0, P1)
         List<int> edgePointIndexList = new List<int>();
-        foreach(Edge edge in mesh.Edges)
+        foreach(TriangleNet.Geometry.Edge edge in mesh.Edges)
         {
             edgePointIndexList.Add(edge.P0);
             edgePointIndexList.Add(edge.P1);
@@ -397,31 +406,30 @@ public class GridManager : MonoBehaviour
 
         return (x1, y1, x2, y2);
     }
-    private void CombineFloorMeshes(GameObject roomGo)
+    private void CombineRoomMesh(GameObject parent, Color sharedMaterialColor)
     {
-        MeshFilter[] meshFilters = roomGo.GetComponentsInChildren<MeshFilter>();
+        MeshFilter[] meshFilters = parent.GetComponentsInChildren<MeshFilter>();
         CombineInstance[] combine = new CombineInstance[meshFilters.Length];
 
         for (int i = 0; i < meshFilters.Length; i++)
         {
             combine[i].mesh = meshFilters[i].sharedMesh;
-            combine[i].transform = meshFilters[i].transform.localToWorldMatrix * roomGo.transform.worldToLocalMatrix;
+            combine[i].transform = meshFilters[i].transform.localToWorldMatrix * parent.transform.worldToLocalMatrix;
             meshFilters[i].gameObject.SetActive(false);
-            //Destroy(meshFilters[i].gameObject)
         }
-        
+
         UnityEngine.Mesh mesh = new UnityEngine.Mesh();
         mesh.CombineMeshes(combine);
-        roomGo.transform.GetComponent<MeshFilter>().sharedMesh = mesh;
-        roomGo.SetActive(true);
-    }
-    private void DrawNodes(List<Node<Vertex>> nodes)
-    {
-        foreach (Node<Vertex> node in nodes)
-        {
-            Vector3 position = new Vector3((float)node.Data.x, 1f, (float)node.Data.y);
-            GameObject sphere = Instantiate(spherePrefab, position, Quaternion.identity);
-            sphere.name = node.Index.ToString();
-        }
+
+        // Create a new sharedMaterial with the specified color
+        Material newMaterial = new Material(Shader.Find("Standard"));
+        newMaterial.color = sharedMaterialColor;
+
+        // Assign the new sharedMaterial to the parent GameObject
+        parent.GetComponent<Renderer>().sharedMaterial = newMaterial;
+
+        // Set the combined mesh
+        parent.transform.GetComponent<MeshFilter>().sharedMesh = mesh;
+        parent.SetActive(true);
     }
 }

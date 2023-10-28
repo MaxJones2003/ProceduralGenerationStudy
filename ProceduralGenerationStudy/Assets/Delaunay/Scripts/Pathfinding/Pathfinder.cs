@@ -12,7 +12,6 @@ namespace Pathfinding
     {
         public List<Vector2Int> Search(Hallway hallway, Dictionary<Vector2Int, PathNode> map)
         {
-            Debug.Log(map.Count);
             if(!hallway.MultiConnectionHall)
             {
                 map[hallway.From].isBlocked = false;
@@ -66,11 +65,8 @@ namespace Pathfinding
                 foreach(var neighbor in neighborNodes)
                 {
                     if(neighbor.isBlocked || closedList.Contains(neighbor))
-                    {
-                        Debug.Log("Neighbor is blocked :(");
                         continue;
-                    }
-                    
+                       
                     neighbor.G = GetManhattenDistance(startNode, neighbor);
                     neighbor.H = GetManhattenDistance(endNode, neighbor);
 
