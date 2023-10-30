@@ -251,7 +251,7 @@ public class GridManager : MonoBehaviour
         var points = new List<Vertex>();
         foreach (Room room in rooms)
         {
-            Vertex roomVertex = (new Vertex(room.roomCenterPosition.x, room.roomCenterPosition.y));
+            Vertex roomVertex = new Vertex(room.roomCenterPosition.x, room.roomCenterPosition.y);
             // Add the room center positions to the nodes list
             nodes.Add(room.roomNumber ,graph.AddNode(roomVertex));
             points.Add(roomVertex);

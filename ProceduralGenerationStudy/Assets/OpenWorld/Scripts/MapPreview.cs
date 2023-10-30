@@ -35,6 +35,9 @@ namespace OpenWorld
 			if (drawMode == DrawMode.NoiseMap) {
 				DrawTexture (TextureGenerator.TextureFromHeightMap (heightMap));
 			} else if (drawMode == DrawMode.Mesh) {
+				if(heightMapSettings.generationType == GenerationType.Limited) { 
+					heightMap = HeightMapGenerator.GenerateHeightMapWithFalloff (meshSettings.numVertsPerLine, meshSettings.numVertsPerLine, heightMapSettings, Vector2.zero);
+				}
 				DrawMesh (MeshGenerator.GenerateTerrainMesh (heightMap.values,meshSettings, editorPreviewLOD));
 			} else if (drawMode == DrawMode.FalloffMap) {
 				DrawTexture(TextureGenerator.TextureFromHeightMap(new HeightMap(FalloffGenerator.GenerateFalloffMap(meshSettings.numVertsPerLine),0,1)));

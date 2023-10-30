@@ -5,9 +5,9 @@ namespace OpenWorld
 	[CreateAssetMenu()]
 	public class HeightMapSettings : UpdatableData {
 
+		public GenerationType generationType;
 		public NoiseSettings noiseSettings;
 
-		public bool useFalloff;
 
 		public float heightMultiplier;
 		public AnimationCurve heightCurve;
@@ -33,4 +33,6 @@ namespace OpenWorld
 		#endif
 
 	}
+
+	public enum GenerationType { Endless, Limited }
 }

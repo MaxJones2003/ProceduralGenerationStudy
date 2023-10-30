@@ -6,6 +6,8 @@
 
 namespace TriangleNet.Voronoi
 {
+    using System.Diagnostics;
+
     using TriangleNet.Geometry;
     using TriangleNet.Tools;
     using TriangleNet.Topology.DCEL;

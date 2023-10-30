@@ -20,6 +20,12 @@ namespace TriangleNet.Voronoi
     /// </summary>
     public abstract class VoronoiBase : DcelMesh
     {
+        #region Added By Max Jones
+        public Vertex GetVertexByID(int index)
+        {
+            return vertices[index];
+        }
+        #endregion
         /// <summary>Predicates</summary>
         protected IPredicates predicates;
 

@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: New Height Map Settings
   m_EditorClassIdentifier: 
   autoUpdate: 1
+  generationType: 0
   noiseSettings:
-    normalizeMode: 1
-    scale: 50
+    normalizeMode: 0
+    scale: 40
     octaves: 6
-    persistance: 0.498
-    lacunarity: 2
+    persistance: 0.696
+    lacunarity: 1.2
     seed: 0
     offset: {x: 0, y: 0}
-  useFalloff: 1
-  heightMultiplier: 50
+  heightMultiplier: 100
   heightCurve:
     serializedVersion: 2
     m_Curve:
@@ -36,15 +36,6 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.0004459694
-      value: 0.04411546
-      inSlope: 0.030373143
-      outSlope: 0.030373143
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 1
-      outWeight: 0.33333334
-    - serializedVersion: 3
       time: 0.07303473
       value: 0.1746891
       inSlope: 0.23097038
@@ -52,6 +43,15 @@ MonoBehaviour:
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.33954585
+      value: 0.2733635
+      inSlope: 0.030373143
+      outSlope: 0.030373143
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 1
       outWeight: 0.33333334
     - serializedVersion: 3
       time: 0.5892284

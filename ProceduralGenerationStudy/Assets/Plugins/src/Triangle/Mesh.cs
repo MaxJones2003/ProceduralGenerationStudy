@@ -296,6 +296,8 @@ namespace TriangleNet
             }
         }
 
+        
+
         #region Misc
 
         /// <summary>
