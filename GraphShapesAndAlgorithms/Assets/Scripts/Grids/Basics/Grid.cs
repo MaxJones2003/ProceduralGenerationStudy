@@ -38,63 +38,26 @@ namespace Geometry
                 Edge[] borders = new Edge[4];
                 borders[0] = edges.Find(e => e.Q == face.Q && e.R == face.R && e.Direction == Direction.West);
                 borders[1] = edges.Find(e => e.Q == face.Q && e.R == face.R && e.Direction == Direction.North);
-                borders[0] = edges.Find(e => e.Q == face.Q && e.R+1 == face.R && e.Direction == Direction.West);
-                borders[1] = edges.Find(e => e.Q+1 == face.Q && e.R == face.R && e.Direction == Direction.North);
+                borders[2] = edges.Find(e => e.Q == face.Q && e.R == face.R+1 && e.Direction == Direction.West);
+                borders[3] = edges.Find(e => e.Q == face.Q+1 && e.R == face.R && e.Direction == Direction.North);
                 face.borders = borders;
+                Debug.Log("Vertex 1 " + face.borders[0] + " Vertex 2  " + face.borders[1] + " Vertex 3  " + face.borders[2] + " Vertex 4  " + face.borders[3]);
             }
         }
 
         private void SetUpFaceNeighbors()
         {
+            List<Face> neighbors = new List<Face>();
             foreach(Face face in faces)
             {
-                Face[] neighbors = new Face[4];
-
-                // If any face that is not the current face has a border that is the same as the current face's border, then it is a neighbor
-                // If any face does not have a a neighbor, that borders isGridBounds = true
-                if(faces.Any(f => f.borders.Any(b => b == face.borders[0]) && f != face))
-                    neighbors[0] = faces.Find(f => f.borders.Any(b => b == face.borders[0]) && f != face);
-                else
+                neighbors.Clear();
+                foreach(Edge border in face.borders)
                 {
-                    face.borders[0].isGridBounds = true;
-                    neighbors[0] = new Face(face.Q - 1, face.R, null)
-                    {
-                        isOutOfGrid = true
-                    };
-                } 
-                if(faces.Any(f => f.borders.Any(b => b == face.borders[1]) && f != face))
-                    neighbors[1] = faces.Find(f => f.borders.Any(b => b == face.borders[1]) && f != face);
-                else
-                {
-                    face.borders[1].isGridBounds = true;
-                    neighbors[1] = new Face(face.Q, face.R - 1, null)
-                    {
-                        isOutOfGrid = true
-                    };
+                    if(faces.Any(f => f.borders.Contains(border) && f != face))
+                        neighbors.Add(faces.Find(f => f.borders.Contains(border) && f != face));
+                    
                 }
-                if(faces.Any(f => f.borders.Any(b => b == face.borders[2]) && f != face))
-                    neighbors[2] = faces.Find(f => f.borders.Any(b => b == face.borders[2]) && f != face);
-                else
-                {
-                    face.borders[2].isGridBounds = true;
-                    neighbors[2] = new Face(face.Q + 1, face.R, null)
-                    {
-                        isOutOfGrid = true
-                    };
-                }
-                if(faces.Any(f => f.borders.Any(b => b == face.borders[3]) && f != face))
-                    neighbors[3] = faces.Find(f => f.borders.Any(b => b == face.borders[3]) && f != face);
-                else 
-                {
-                    face.borders[3].isGridBounds = true;
-                    neighbors[3] = new Face(face.Q, face.R + 1, null)
-                    {
-                        isOutOfGrid = true
-                    };
-                }
-
-
-                face.neighbors = neighbors;
+                face.neighbors = neighbors.ToArray();
             }
         }
 
@@ -136,11 +99,11 @@ namespace Geometry
             {
                 if(vertices.Any(v => v.Q == vertex.Q + 1 && v.R == vertex.R))
                 {
-                    edges.Add(new Edge(vertex, vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R), Direction.West, vertex.Q, vertex.R));
+                    edges.Add(new Edge(vertex, vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R), Direction.North, vertex.Q, vertex.R));
                 }
                 if(vertices.Any(v => v.Q == vertex.Q && v.R == vertex.R + 1))
                 {
-                    edges.Add(new Edge(vertex, vertices.Find(v => v.Q == vertex.Q && v.R == vertex.R + 1), Direction.North, vertex.Q, vertex.R));
+                    edges.Add(new Edge(vertex, vertices.Find(v => v.Q == vertex.Q && v.R == vertex.R + 1), Direction.West, vertex.Q, vertex.R));
                 }
             }
         }
@@ -154,14 +117,11 @@ namespace Geometry
                 {
                     faces.Add(new Face(vertex.Q, vertex.R, 
                     new Vertex[] {vertex, 
-                    vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R), 
                     vertices.Find(v => v.Q == vertex.Q && v.R == vertex.R + 1), 
-                    vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R + 1)}));
+                    vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R + 1), 
+                    vertices.Find(v => v.Q == vertex.Q + 1 && v.R == vertex.R)}));
                 }
             }
         }
-
-
-
     }
 }

@@ -33,6 +33,11 @@ namespace Geometry
         ///  The two vertices that make up this edge.
         /// </summary>
         public Vertex[] endPoints { get; set; }
+
+        public override string ToString()
+        {
+            return endPoints[0].ToString() + " " + endPoints[1].ToString();
+        }
     }
 
     public enum Direction

@@ -21,7 +21,7 @@ public class SquareGridController : MonoBehaviour
         
         GenerateGrid();
     }
-
+    public int disMany;
     private void OnDrawGizmos()
     {
         if (grid == null)
@@ -29,44 +29,56 @@ public class SquareGridController : MonoBehaviour
 
         Vector3 position = transform.position;
         float heightOffset = 0f;
-        foreach (Vertex vertex in grid.vertices)
+         for (int i = 0; i < /* grid.vertices.Count*/ disMany; i++)
         {
-            if(vertex.Q%2 == 0 && vertex.R%2 == 0)
+            if(i >= grid.vertices.Count) continue;
+             /* if(vertex.Q%2 == 0 && vertex.R%2 == 0)
                 heightOffset = 1f;
             else
-                heightOffset = 0f;
-            Handles.Label(new Vector3(vertex.Q, heightOffset, vertex.R) + position, vertex.Q + ", " + vertex.R);
-            Gizmos.DrawSphere(new Vector3(vertex.Q, heightOffset, vertex.R) + position, 0.05f);
+                heightOffset = 0f;  */
+            Handles.Label(new Vector3(grid.vertices[i].Q, heightOffset, grid.vertices[i].R) + position, grid.vertices[i].Q + ", " + grid.vertices[i].R);
+            Gizmos.DrawSphere(new Vector3(grid.vertices[i].Q, heightOffset, grid.vertices[i].R) + position, 0.05f);
         }
 
-        foreach (Edge edge in grid.edges)
+        for (int i = 0; i < /* grid.edges.Count /disMany*/2; i++)
         {
-            if(edge.Q%2 == 0 && edge.R%2 == 0)
+            if(i >= grid.edges.Count) continue;
+            /* if(edge.Q%2 == 0 && edge.R%2 == 0)
                 heightOffset = 1f;
             else
-                heightOffset = 0f;
-            Vector3 offest = edge.Direction == Direction.North ? new Vector3(0, 0, 0.5f) : new Vector3(0.5f, 0, 0);
+                heightOffset = 0f; */ 
+            Vector3 offest = grid.edges[i].Direction == Direction.North ? new Vector3(0, 0, 0.5f) : new Vector3(0.5f, 0, 0);
             /* if(edge.isGridBounds)
                 Gizmos.color = Color.red;
             else
                 Gizmos.color = Color.white; */
-            Handles.Label(new Vector3(edge.Q, heightOffset, edge.R) + offest + position, edge.Direction.ToString() + " " + edge.Q + ", " + edge.R);
-            Gizmos.DrawLine(new Vector3(edge.endPoints[0].Q, heightOffset, edge.endPoints[0].R) + position, new Vector3(edge.endPoints[1].Q, heightOffset, edge.endPoints[1].R) + position);
+            Handles.Label(new Vector3(grid.edges[i].Q, heightOffset, grid.edges[i].R) + offest + position, grid.edges[i].Direction.ToString() + " " + grid.edges[i].Q + ", " + grid.edges[i].R);
+            Gizmos.DrawLine(new Vector3(grid.edges[i].endPoints[0].Q, heightOffset, grid.edges[i].endPoints[0].R) + position, new Vector3(grid.edges[i].endPoints[1].Q, heightOffset, grid.edges[i].endPoints[1].R) + position);
         }
 
-        foreach(Face face in grid.faces)
+        for (int i = 0; i < /* grid.faces.Count */disMany; i++)
         {
-
-            Handles.Label(new Vector3(face.Q+0.5f, 0.05f, face.R+0.5f) + position, face.Q + ", " + face.R);
-            foreach(Face neighbor in face.neighbors)
+            if(i >= grid.faces.Count) continue;
+            Handles.Label(new Vector3(grid.faces[i].Q+0.5f, heightOffset + 0.05f, grid.faces[i].R+0.5f) + position, grid.faces[i].Q + ", " + grid.faces[i].R);
+            /* foreach(Edge edge in grid.faces[i].borders)
             {
-                /* if(neighbor.isOutOfGrid)
-                {
-                    Handles.color = Color.red;
-                    Handles.Label(new Vector3(neighbor.Q+0.5f, 1f, neighbor.R+0.5f) + position, neighbor.Q + ", " + neighbor.R + " is out of grid");
-                } */
-                
+                Gizmos.DrawLine(new Vector3(edge.endPoints[0].Q, heightOffset, edge.endPoints[0].R) + position, new Vector3(edge.endPoints[1].Q, heightOffset, edge.endPoints[1].R) + position);
             }
+            int z = 0;
+            foreach(Vertex vertex in grid.faces[i].corners)
+            {
+                z++;
+                Handles.Label(new Vector3(vertex.Q, heightOffset+(z/4f), vertex.R) + position, z.ToString());
+                Gizmos.DrawSphere(new Vector3(vertex.Q, heightOffset, vertex.R) + position, 0.05f);
+            }
+            foreach(Face face in grid.faces[i].neighbors)
+            {
+                foreach(Edge edge in face.borders)
+                {
+                    Gizmos.DrawLine(new Vector3(edge.endPoints[0].Q, heightOffset, edge.endPoints[0].R) + position, new Vector3(edge.endPoints[1].Q, heightOffset, edge.endPoints[1].R) + position);
+                }
+            } */
+            
             
         }
     }

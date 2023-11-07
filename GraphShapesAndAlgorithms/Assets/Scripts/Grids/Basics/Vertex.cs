@@ -27,6 +27,11 @@ namespace Geometry
             Q = q;
             R = r;
         }
+
+        public override string ToString()
+        {
+            return Q + ", " + R;
+        }
     }
 }
 
