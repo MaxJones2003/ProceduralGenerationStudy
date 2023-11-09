@@ -9,6 +9,7 @@ using Unity.VisualScripting;
 
 namespace Map
 {
+        // https://github.com/amitp/mapgen2/blob/master/Map.as
     public class Map
     {
         int SIZE;
@@ -26,10 +27,9 @@ namespace Map
 
             BuildGraph(points, voronoi);
         }
-        // https://github.com/amitp/mapgen2/blob/master/Map.as
         private void BuildGraph(List<Vector2f> points, Voronoi voronoi)
         {
-             Corner q;// Vector2f point, other;
+            Corner q;// Vector2f point, other;
             var libEdges = voronoi.Edges;
             Dictionary<Vector2f, Center> centerLookup = new();
 
@@ -96,7 +96,7 @@ namespace Map
             }
 
             // Helper functions for the following loop; ideally thes would be inline
-            void addToCorners(List<Corner> v, Corner x)
+            void addToCornerList(List<Corner> v, Corner x)
             {
                 if(x != null && v.IndexOf(x) < 0) v.Add(x);
             }
@@ -116,15 +116,73 @@ namespace Map
                 edge.index = edges.Count;
                 edge.river = 0;
                 edges.Add(edge);
+                edge.midpoint = (vedge.p0 != null && vedge.p1 != null) ? Vector2f.Interpolate(vedge.p0, vedge.p1, 0.5f) : null ;
 
                 // Edges point to corners. Edges point to centers.
                 edge.v0 = makeCorner(vedge.p0);
                 edge.v1 = makeCorner(vedge.p1);
+                edge.d0 = centerLookup[dedge.p0];
+                edge.d1 = centerLookup[dedge.p1];
 
+                // Centers point to edges. Corners point to edges
+                if (edge.d0 != null) { edge.d0.borders.Add(edge); }
+                if (edge.d1 != null) { edge.d1.borders.Add(edge); }
+                if (edge.v0 != null) { edge.v0.protrudes.Add(edge); }
+                if (edge.v1 != null) { edge.v1.protrudes.Add(edge); }
+
+                // Centers point to centers.
+                if (edge.d0 != null && edge.d1 != null)
+                {
+                    addToCenterList(edge.d0.neighbors, edge.d1);
+                    addToCenterList(edge.d1.neighbors, edge.d0);
+                }
+
+                // Corners point to corners
+                if (edge.v0 != null && edge.v1 != null)
+                {
+                    addToCornerList(edge.v0.adjacent, edge.v1);
+                    addToCornerList(edge.v1.adjacent, edge.v0);
+                }
+
+                // Centers point to corners
+                if (edge.d0 != null)
+                {
+                    addToCornerList(edge.d0.corners, edge.v0);
+                    addToCornerList(edge.d0.corners, edge.v1);
+                }
+                if (edge.d1 != null)
+                {
+                    addToCornerList(edge.d1.corners, edge.v0);
+                    addToCornerList(edge.d1.corners, edge.v1);
+                }
+
+                // Corners point to centers
+                if (edge.v0 != null)
+                {
+                    addToCenterList(edge.v0.touches, edge.d0);
+                    addToCenterList(edge.v0.touches, edge.d1);
+                }
+                if (edge.v1 != null)
+                {
+                    addToCenterList(edge.v1.touches, edge.d0);
+                    addToCenterList(edge.v1.touches, edge.d1);
+                }
             }
         }
-            
-        
+
+        // Determine elevations and water at Voronoi corners. By
+        // construction, we have no local minima. This is important for
+        // the downslope vectors later, which are used in the river
+        // construction algorithm. Also by construction, inlets/bays
+        // push low elevation areas inland, which means many rivers end
+        // up flowing out through them. Also by construction, lakes
+        // often end up on river paths because they don't raise the
+        // elevation as much as other terrain does.
+
+        public void AssignCornerElevations()
+        {
+
+        }
     }
 }
 

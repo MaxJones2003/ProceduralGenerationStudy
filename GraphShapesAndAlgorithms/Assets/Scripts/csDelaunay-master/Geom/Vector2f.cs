@@ -1,8 +1,9 @@
 ﻿using System;
+using UnityEngine;
 
 // Recreation of the UnityEngine.Vector3, so it can be used in other thread
 [System.Serializable]
-public struct Vector2f {
+public class Vector2f {
 	
 	public float x, y;
 	
@@ -40,6 +41,12 @@ public struct Vector2f {
 		float magnitude = a.magnitude;
 		return new Vector2f(a.x/magnitude, a.y/magnitude);
 	}
+
+	public static Vector2f Interpolate(Vector2f a, Vector2f b, float weight)
+	{
+		Vector2 lerped = Vector2.Lerp(new Vector2(a.x, a.y), new Vector2(b.x, b.y), weight);
+		return new Vector2f(lerped.x, lerped.y);
+	}
 	
 	public override bool Equals(object other) {
 		if (!(other is Vector2f)) {
@@ -49,8 +56,8 @@ public struct Vector2f {
 		return x == v.x &&
 			y == v.y;
 	}
-	
-	public override string ToString () {
+
+    public override string ToString () {
 		return string.Format ("[Vector2f]"+x+","+y);
 	}
 	
