@@ -1,138 +1,130 @@
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using csDelaunay;
+using System.Linq;
+using System;
+using System.Drawing;
+using System.Net.Sockets;
+using System.Numerics;
+using Unity.VisualScripting;
+
 namespace Map
 {
-    public class Center
-    {
-        public Center(Vector2f point, Site site)
-        {
-            this.point = point;
-            sites = new();
-            sites.Add(site);
-            /* neighbors = new List<Center>();
-            borders = new List<Edge>();
-            corners = new List<Corner>(); */
-        }
-
-        public int index;
-
-        public Vector2f point;  // location
-        public List<Site> sites; // Any Delaunay cell with this point in its edges
-
-        public bool water;  // lake or ocean
-        public bool ocean;  // ocean
-        public bool coast;  // land polygon touching an ocean
-        public bool border;  // at the edge of the map
-        public string biome;  // biome type (see article)
-        public float elevation;  // 0.0-1.0
-        public float moisture;  // 0.0-1.0
-
-        [HideInInspector] public List<Center> neighbors;
-        [HideInInspector] public List<Edge> borders;
-        [HideInInspector] public List<Corner> corners;
-
-        // Override comparison for a Vector2f and a Center, where the Vector2f is the point of the center
-        public static bool operator ==(Center c, Vector2f v)
-        {
-            return c.point == v;
-        }
-
-        // Define the != operator as well
-        public static bool operator !=(Center c, Vector2f v)
-        {
-            return !(c == v);
-        }
-
-    }
-
-    public class Corner
-    {
-        public int index;
-
-        public List<Site> sites; // Any Voronoi cell with this point in its edges
-  
-        public Vector2f point;  // location
-        public bool ocean;  // ocean
-        public bool water;  // lake or ocean
-        public bool coast;  // touches ocean and land polygons
-        public bool border;  // at the edge of the map
-        public float elevation;  // 0.0-1.0
-        public float moisture;  // 0.0-1.0
-
-        [HideInInspector] public List<Center> touches;
-        [HideInInspector] public List<Edge> protrudes;
-        [HideInInspector] public List<Corner> adjacent;
-        
-    
-        [HideInInspector] public int river;  // 0 if no river, or volume of water in river
-        [HideInInspector] public Corner downslope;  // pointer to adjacent corner most downhill
-        [HideInInspector] public Corner watershed;  // pointer to coastal corner, or null
-        [HideInInspector] public int watershed_size;
-        private Vector2f p0;
-
-
-        public Corner(Vector2f p0, Site site)
-        {
-            this.p0 = p0;
-            sites = new();
-            
-            sites.Add(site);
-        }
-
-        // Override comparison for a Vector2f and a Corner, where the Vector2f is the point of the corner
-        public static bool operator ==(Corner c, Vector2f v)
-        {
-            return c.point == v;
-        }
-        // Define the != operator as well
-        public static bool operator !=(Corner c, Vector2f v)
-        {
-            return !(c == v);
-        }
-    }
-
-    public class Edge
-    {
-        public int index;
-        public Center d0, d1;  // Delaunay edge
-        public Corner v0, v1;  // Voronoi edge
-
-        public List<Site> delaunaySites; // Any Delaunay triangle with this edge in its edges
-
-        [HideInInspector] public Vector2f midpoint;  // halfway between v0,v1
-        [HideInInspector] public int river;  // volume of water, or 0
-
-        public Edge(Center d0, Center d1, Site site0, Site site1)
-        {
-            this.d0 = d0;
-            this.d1 = d1;
-            delaunaySites = new();
-
-            delaunaySites.Add(site0);
-            if(site0 != site1)
-                delaunaySites.Add(site1);
-        }
-
-        public Edge(Corner v0, Corner v1)
-        {
-            this.v0 = v0;
-            this.v1 = v1;
-        }
-    }
-
     public class Map
     {
+        int SIZE;
         public List<Center> centers;
         public List<Corner> corners;
         public List<Edge> edges;
 
-        public Map(List<Center> centers, List<Corner> corners, List<Edge> edges)
+        public Map(int SIZE, Voronoi voronoi)
         {
-            this.centers = centers;
-            this.corners = corners;
-            this.edges = edges;
+            this.SIZE = SIZE;
+            // Foreach site location in the sites indexed by location dictionary add points
+            List<Vector2f> points = new();
+            foreach (var v in voronoi.SitesIndexedByLocation.Keys)
+                points.Add(v);
+
+            BuildGraph(points, voronoi);
         }
+        // https://github.com/amitp/mapgen2/blob/master/Map.as
+        private void BuildGraph(List<Vector2f> points, Voronoi voronoi)
+        {
+             Corner q;// Vector2f point, other;
+            var libEdges = voronoi.Edges;
+            Dictionary<Vector2f, Center> centerLookup = new();
+
+            // Build Center objects for each of the points, and a lookup map
+            // to find those Center objects again as we build the graph
+            foreach (var point in points)
+            {
+                Center p = new Center();
+                p.index = centers.Count;
+                p.point = point;
+                p.neighbors = new List<Center>();
+                p.borders = new List<Edge>();
+                p.corners = new List<Corner>();
+                centers.Add(p);
+                centerLookup.Add(point, p);
+            }
+
+            // Workaround for Voronoi lib bug: we need to call region()
+            // before Edges or neighboringSites are available
+            // I don't know if I actually need this, the reference I am using uses a different voronoi library, so I might not have this bug, 
+            // but I'm doing it just to be safe.
+            foreach (var p in centers)
+            {
+                voronoi.Region(p.point);
+            }
+            // The Voronoi library generates multiple Point objects for
+            // corners, and we need to canonicalize to one Corner object.
+            // To make lookup fast, we keep an array of Points, bucketed by
+            // x value, and then we only have to look at other Points in
+            // nearby buckets. When we fail to find one, we'll create a new
+            // Corner object.
+            List<List<Corner>> _cornerMap = new();
+
+            Corner makeCorner(Vector2f point) {
+                Corner q;
+
+                if (point == null) return null;
+                int bucket = 0;
+
+                for (bucket = (int) point.x - 1; bucket <= (int) point.x+1 + 1; bucket++) {
+                    foreach(var _q in _cornerMap[bucket]) {
+                        var dx = point.x - _q.point.x;
+                        var dy = point.y - _q.point.y;
+                        if (dx * dx + dy * dy < 1e-6)
+                        {
+                            return _q;
+                        }
+                    }
+                }
+
+                bucket = (int)point.x;
+                if (_cornerMap[bucket] == null) _cornerMap[bucket] = new();
+                q = new Corner();
+                q.index = corners.Count;
+                corners.Add(q);
+                q.point = point;
+                q.border = (point.x == 0 || point.x == SIZE
+                            || point.y == 0 || point.y == SIZE);
+                q.touches = new List<Center>();
+                q.protrudes = new List<Edge>();
+                q.adjacent = new List<Corner>();
+                _cornerMap[bucket].Add(q);
+                return q;
+            }
+
+            // Helper functions for the following loop; ideally thes would be inline
+            void addToCorners(List<Corner> v, Corner x)
+            {
+                if(x != null && v.IndexOf(x) < 0) v.Add(x);
+            }
+            void addToCenterList(List<Center> v, Center x)
+            {
+                if(x != null && v.IndexOf(x) < 0) v.Add(x);
+            }
+
+            foreach(var libEdge in libEdges)
+            {
+                var dedge = libEdge.DelaunayLine();
+                var vedge = libEdge.VoronoiEdge();
+
+                // Fill the graph data. Make an Edge object corresponding to
+                // the edge from the voronoi library.
+                var edge = new Edge();
+                edge.index = edges.Count;
+                edge.river = 0;
+                edges.Add(edge);
+
+                // Edges point to corners. Edges point to centers.
+                edge.v0 = makeCorner(vedge.p0);
+                edge.v1 = makeCorner(vedge.p1);
+
+            }
+        }
+            
+        
     }
 }
+

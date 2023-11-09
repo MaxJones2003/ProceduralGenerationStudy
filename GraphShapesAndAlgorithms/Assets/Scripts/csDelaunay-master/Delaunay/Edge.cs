@@ -94,6 +94,11 @@ namespace csDelaunay {
 		private Vertex rightVertex;
 		public Vertex RightVertex {get{return rightVertex;}}
 
+		public LineSegment VoronoiEdge()
+		{
+			return new LineSegment(leftVertex.Coord, rightVertex.Coord);
+        }
+
 		public Vertex Vertex(LR leftRight) {
 			return leftRight == LR.LEFT ? leftVertex : rightVertex;
 		}
@@ -146,7 +151,12 @@ namespace csDelaunay {
 		public Site LeftSite {get{return sites[LR.LEFT];} set{sites[LR.LEFT]=value;}}
 		public Site RightSite {get{return sites[LR.RIGHT];} set{sites[LR.RIGHT]=value;}}
 
-		public Site Site(LR leftRight) {
+        public LineSegment DelaunayLine()
+        {
+            return new LineSegment(LeftSite.Coord, RightSite.Coord);
+        }
+
+        public Site Site(LR leftRight) {
 			return sites[leftRight];
 		}
 
