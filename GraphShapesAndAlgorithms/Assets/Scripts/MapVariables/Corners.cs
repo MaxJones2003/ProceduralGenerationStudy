@@ -24,10 +24,10 @@ namespace Map
         [HideInInspector] public List<Corner> adjacent;
 
 
-        [HideInInspector] public int river;  // 0 if no river, or volume of water in river
+        [HideInInspector] public int? river;  // 0 if no river, or volume of water in river
         [HideInInspector] public Corner downslope;  // pointer to adjacent corner most downhill
         [HideInInspector] public Corner watershed;  // pointer to coastal corner, or null
-        [HideInInspector] public int watershed_size;
+        [HideInInspector] public int? watershed_size;
         private Vector2f p0;
 
         #region Overrides
