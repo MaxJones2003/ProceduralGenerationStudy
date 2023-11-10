@@ -20,7 +20,7 @@ namespace Map
         public int index;
 
         public Vector2f point;  // location
-        public List<Site> sites; // Any Delaunay cell with this point in its edges
+        [HideInInspector]public List<Site> sites; // Any Delaunay cell with this point in its edges
 
         public bool water;  // lake or ocean
         public bool ocean;  // ocean

@@ -5,11 +5,11 @@ using UnityEngine;
 
 namespace Map
 {
-    public class Corner : IEnumerable<Corner>
+    public class Corner
     {
         public int index;
 
-        public List<Site> sites; // Any Voronoi cell with this point in its edges
+        [HideInInspector]public List<Site> sites; // Any Voronoi cell with this point in its edges
 
         public Vector2f point;  // location
         public bool ocean;  // ocean
@@ -56,7 +56,7 @@ namespace Map
             return base.ToString();
         }
 
-        public IEnumerator<Corner> GetEnumerator()
+        /* public IEnumerator<Corner> GetEnumerator()
         {
             return new CornerEnumerator(this);
         }
@@ -64,9 +64,9 @@ namespace Map
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
+        } */
 
-        private class CornerEnumerator : IEnumerator<Corner>
+        /* private class CornerEnumerator : IEnumerator<Corner>
         {
             private Corner _corner;
             private int _index;
@@ -96,7 +96,7 @@ namespace Map
             {
                 _index = -1;
             }
-        }
+        } */
         #endregion
     }
 }

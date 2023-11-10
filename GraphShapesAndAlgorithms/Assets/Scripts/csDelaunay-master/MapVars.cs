@@ -9,6 +9,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using System.Reflection;
 using System.Diagnostics;
+using UnityEngine;
 
 namespace Map
 {
@@ -41,21 +42,23 @@ namespace Map
         public List<Corner> corners;
         public List<Edge> edges;
 
-        public Map(int SIZE, int iterations)
+        public Map(int SIZE, int iterations, int maxStage)
         {
             this.SIZE = SIZE;
             lloydIterations = iterations;
             numPoints = 1;
+            goStage = maxStage;
             Reset();
         }
          // Random parameters governing the overall shape of the island
-        public void NewIsland(IslandShapeEnum islandShapeEnum, int numPoints_, int seed) 
+         int goStage = 0;
+        public void  NewIsland(IslandShapeEnum islandShapeEnum, int numPoints_, int seed) 
         {
             numPoints = numPoints_;
             SetIslandShape(islandShapeEnum, seed);
             numPoints = numPoints_;
             mapRandom = new System.Random(seed);
-            Go(0, 2);
+            Go(0, goStage);
         }
         private void SetIslandShape(IslandShapeEnum islandShapeEnum, int seed)
         {
@@ -149,7 +152,7 @@ namespace Map
             stages.Add(new Tuple<string, Action>("Build graph...",
                 () =>
                 {
-                    var voronoi = GenerateVoronoi(points, 2);
+                    var voronoi = GenerateVoronoi(points, lloydIterations);
                     BuildGraph(points, voronoi);
                     voronoi.Dispose();
                     voronoi = null;
@@ -251,7 +254,7 @@ namespace Map
 
             // Build Center objects for each of the points, and a lookup map
             // to find those Center objects again as we build the graph
-            foreach (var point in points)
+            foreach (var point in voronoi.SitesIndexedByLocation.Keys)
             {
                 Center p = new Center();
                 p.index = centers.Count;
@@ -262,6 +265,7 @@ namespace Map
                 centers.Add(p);
                 centerLookup.Add(point, p);
             }
+            UnityEngine.Debug.Log(corners.Count);
 
             // Workaround for Voronoi lib bug: we need to call region()
             // before Edges or neighboringSites are available
@@ -271,33 +275,40 @@ namespace Map
             {
                 voronoi.Region(p.point);
             }
+            
             // The Voronoi library generates multiple Point objects for
             // corners, and we need to canonicalize to one Corner object.
             // To make lookup fast, we keep an array of Points, bucketed by
             // x value, and then we only have to look at other Points in
             // nearby buckets. When we fail to find one, we'll create a new
             // Corner object.
-            List<List<Corner>> _cornerMap = new();
+            Vector2f InvalidVector2f = new Vector2f(float.NaN, float.NaN);
+            /* Dictionary<float,Corner> _cornerMap = new();
 
             Corner makeCorner(Vector2f point) {
                 Corner q;
 
-                if (point == null) return null;
-                int bucket = 0;
+                if (point.x == float.NaN || point.y == float.NaN) return null;
+                float bucket = 0;
 
-                for (bucket = (int) point.x - 1; bucket <= (int) point.x+1 + 1; bucket++) {
-                    foreach(var _q in _cornerMap[bucket]) {
-                        var dx = point.x - _q.point.x;
-                        var dy = point.y - _q.point.y;
-                        if (dx * dx + dy * dy < 1e-6)
-                        {
-                            return _q;
+                for (bucket = (point.x) - 1; bucket <= (point.x) + 1; bucket++) {
+                    if(_cornerMap.ContainsKey(bucket))
+                    {
+                        foreach(var _q in _cornerMap[bucket]) {
+                            var dx = point.x - _q.point.x;
+                            var dy = point.y - _q.point.y;
+                            if (dx * dx + dy * dy < 1e-6)
+                            {
+                                return _q;
+                            }
                         }
+
                     }
                 }
 
-                bucket = (int)point.x;
-                if (_cornerMap[bucket] == null) _cornerMap[bucket] = new();
+                bucket = point.x;
+                if (!_cornerMap.ContainsKey(bucket)) _cornerMap.Add(bucket, new Corner());
+                else return _cornerMap[bucket];
                 q = new Corner();
                 q.index = corners.Count;
                 corners.Add(q);
@@ -307,8 +318,38 @@ namespace Map
                 q.touches = new List<Center>();
                 q.protrudes = new List<Edge>();
                 q.adjacent = new List<Corner>();
-                _cornerMap[bucket].Add(q);
+                _cornerMap.Add(bucket, q);
                 return q;
+            } */
+           Dictionary<Vector2f, Corner> _cornerMap = new Dictionary<Vector2f, Corner>();
+
+            Corner makeCorner(Vector2f point)
+            {
+                if (float.IsNaN(point.x) || float.IsNaN(point.y)) 
+                { 
+                    UnityEngine.Debug.Log("Returning null"); 
+                    return null; 
+                }
+
+                if (_cornerMap.TryGetValue(point, out Corner existingCorner))
+                {
+                    return existingCorner;
+                }
+
+                var newCorner = new Corner
+                {
+                    index = corners.Count,
+                    point = point,
+                    border = (point.x == 0 || point.x == SIZE || point.y == 0 || point.y == SIZE),
+                    touches = new List<Center>(),
+                    protrudes = new List<Edge>(),
+                    adjacent = new List<Corner>()
+                };
+
+                corners.Add(newCorner);
+                _cornerMap[point] = newCorner;
+
+                return newCorner;
             }
 
             // Helper functions for the following loop; ideally thes would be inline
@@ -320,7 +361,7 @@ namespace Map
             {
                 if(x != null && v.IndexOf(x) < 0) v.Add(x);
             }
-
+            float nan = float.NaN;
             foreach(var libEdge in libEdges)
             {
                 var dedge = libEdge.DelaunayLine();
@@ -332,7 +373,7 @@ namespace Map
                 edge.index = edges.Count;
                 edge.river = 0;
                 edges.Add(edge);
-                edge.midpoint = (vedge.p0 != null && vedge.p1 != null) ? Vector2f.Interpolate(vedge.p0, vedge.p1, 0.5f) : null ;
+                edge.midpoint = (vedge.p0.x != nan && vedge.p1.y != nan) ? Vector2f.Interpolate(vedge.p0, vedge.p1, 0.5f) : InvalidVector2f ;
 
                 // Edges point to corners. Edges point to centers.
                 edge.v0 = makeCorner(vedge.p0);
@@ -400,6 +441,7 @@ namespace Map
             
             foreach (var q in corners) {
                 q.water = !Inside(q.point);
+                 UnityEngine.Debug.Log(q.water);
             }
 
             foreach (var q in corners) {
@@ -425,6 +467,7 @@ namespace Map
                     var newElevation = 0.01f + q.elevation;
                     if (!q.water && !s.water) {
                         newElevation += 1;
+                        UnityEngine.Debug.Log(newElevation);
                         /* if (needsMoreRandomness) {
                             // HACK: the map looks nice because of randomness of
                             // points, randomness of rivers, and randomness of
@@ -587,7 +630,7 @@ namespace Map
         // point downstream from it, or to itself.  This is used for
         // generating rivers and watersheds.
         public void CalculateDownslopes()
-        {            
+        {       
             foreach (var q in corners) {
                 var r = q;
                 foreach (var s in q.adjacent) 
@@ -608,7 +651,6 @@ namespace Map
         public void CalculateWatersheds() 
         {
             bool changed;
-            
             // Initially the watershed pointer points downslope one step.      
             foreach (var q in corners) 
             {

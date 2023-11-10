@@ -3,7 +3,7 @@ using UnityEngine;
 
 // Recreation of the UnityEngine.Vector3, so it can be used in other thread
 [System.Serializable]
-public class Vector2f {
+public struct Vector2f {
 	
 	public float x, y;
 	

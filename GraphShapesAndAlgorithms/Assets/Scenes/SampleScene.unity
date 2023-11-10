@@ -408,4 +408,5 @@ MonoBehaviour:
   islandShape: 0
   polygonNumber: 100
   iterations: 2
+  stage: 5
   polygonsToDisplay: 300

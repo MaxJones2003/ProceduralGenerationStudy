@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace csDelaunay {
 
@@ -20,7 +21,10 @@ namespace csDelaunay {
 		 * @param site1
 		 * @return
 		 */
+
+		public Vector2f point1, point2;
 		public static Edge CreateBisectingEdge(Site s0, Site s1) {
+
 			float dx, dy;
 			float absdx, absdy;
 			float a, b, c;
@@ -94,9 +98,10 @@ namespace csDelaunay {
 		private Vertex rightVertex;
 		public Vertex RightVertex {get{return rightVertex;}}
 
+		Vector2f NaN = new Vector2f(float.NaN, float.NaN);
 		public LineSegment VoronoiEdge()
 		{
-			return new LineSegment(leftVertex.Coord, rightVertex.Coord);
+			return new LineSegment(leftVertex, rightVertex);
         }
 
 		public Vertex Vertex(LR leftRight) {
@@ -214,6 +219,7 @@ namespace csDelaunay {
 				vertex0 = leftVertex;
 				vertex1 = rightVertex;
 			}
+			
 
 			if (a == 1) {
 				y0 = ymin;

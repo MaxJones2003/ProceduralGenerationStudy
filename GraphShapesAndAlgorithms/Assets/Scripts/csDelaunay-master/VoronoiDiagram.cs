@@ -45,10 +45,18 @@ public class VoronoiDiagram : MonoBehaviour {
         FindBoundSites();
         DisplayVoronoiDiagram();
     } */
+    public int stage;
+
+    public List<Map.Center> mapCenters;
+    public List<Map.Corner> mapCorners;
+    public List<Map.Edge> mapEdges;
     public void GenerateVoronoi()
     {
-        map = new Map.Map(polygonNumber, iterations);
+        map = new Map.Map(polygonNumber, iterations, stage);
         map.NewIsland(islandShape, polygonNumber, seed);
+        mapCenters = map.centers;
+        mapCorners = map.corners;
+        mapEdges = map.edges;
     }
     public List<Vector2f> CreateRandomPoints() {
         // Use Vector2f, instead of Vector2
@@ -153,17 +161,35 @@ public class VoronoiDiagram : MonoBehaviour {
     {
         if(map == null) return;
 
-        foreach(var corner in map.corners)
+/*         foreach(var corner in map.corners)
         {
             if(corner.water)
                 Gizmos.color = Color.blue;
             else
                 Gizmos.color = Color.green;
 
-            Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation, corner.point.y), 1);
-        }
+            Gizmos.DrawSphere(new Vector3(corner.point.x/100, corner.elevation, corner.point.y/100), 0.1f);
+        } */
 
-        
+        foreach(Map.Edge edge in map.edges)
+        {
+            // draw a red sphere at the d0 and d1 points
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(new Vector3(edge.d0.point.x/100, edge.d0.elevation*5, edge.d0.point.y/100), 0.01f);
+            Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation*5, edge.d1.point.y/100), 0.01f);
+            // draw a black line between d0 and d1
+            Gizmos.color = Color.black;
+            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation*5, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation*5, edge.d1.point.y/100));
+
+            // draw a blue sphere at the v0 and v1 points
+            Gizmos.color = Color.blue;
+            Gizmos.DrawSphere(new Vector3(edge.v0.point.x/100, edge.v0.elevation*5, edge.v0.point.y/100), 0.01f);
+            Gizmos.DrawSphere(new Vector3(edge.v1.point.x/100, edge.v1.elevation*5, edge.v1.point.y/100), 0.01f);
+            // draw a white line between v0 and v1
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(new Vector3(edge.v0.point.x/100, edge.v0.elevation*5, edge.v0.point.y/100), new Vector3(edge.v1.point.x/100, edge.v1.elevation*5, edge.v1.point.y/100));
+
+        }
     }
     /* void OnValidate()
     {

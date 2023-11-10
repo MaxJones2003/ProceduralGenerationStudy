@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace csDelaunay {
 
@@ -290,11 +291,11 @@ namespace csDelaunay {
 			foreach (Edge e in edges) {
 				e.ClipVertices(plotBounds);
 			}
-			// But we don't actually ever use them again!
+			/* // But we don't actually ever use them again!
 			foreach (Vertex ve in vertices) {
 				ve.Dispose();
 			}
-			vertices.Clear();
+			vertices.Clear(); */
 		}
 
 		public void LloydRelaxation(int nbIterations) {

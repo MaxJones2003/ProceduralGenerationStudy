@@ -42,5 +42,16 @@ namespace csDelaunay {
 			this.p0 = p0;
 			this.p1 = p1;
 		}
+		int index = 0;
+		public LineSegment (Vertex v0, Vertex v1)
+		{
+			index++;
+			if(v0 == null || v1 == null)
+			{
+				return;
+			}
+			this.p0 = v0.Coord;
+			this.p1 = v1.Coord;
+		}
 	}
 }
