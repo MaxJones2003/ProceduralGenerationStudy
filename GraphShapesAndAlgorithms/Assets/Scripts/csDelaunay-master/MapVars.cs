@@ -42,11 +42,12 @@ namespace Map
         public List<Corner> corners;
         public List<Edge> edges;
 
-        public Map(int SIZE, int iterations, int maxStage)
+        public Map(int numOfPoints, int SIZE, int iterations, int maxStage)
         {
+            numPoints = numOfPoints;
             this.SIZE = SIZE;
             lloydIterations = iterations;
-            numPoints = 1;
+            //numPoints = 1;
             goStage = maxStage;
             Reset();
         }
@@ -145,7 +146,7 @@ namespace Map
                 () =>
                 {
                     Reset();
-                    points = CreateRandomPoints(SIZE);
+                    points = CreateRandomPoints(numPoints);
                 }));
 
             // Create a graph structure from the Voronoi edge list.
@@ -226,14 +227,15 @@ namespace Map
             // Vector2f is pretty much the same than Vector2, but like you could run Voronoi in another thread
             List<Vector2f> points = new List<Vector2f>();
             for (int i = 0; i < size; i++) {
-                points.Add(new Vector2f(UnityEngine.Random.Range(0,512), UnityEngine.Random.Range(0,512)));
+                points.Add(new Vector2f(UnityEngine.Random.Range(0,SIZE), UnityEngine.Random.Range(0,SIZE)));
+                if(points[i].x < 0 || points[i].x > SIZE || points[i].y < 0 || points[i].y > SIZE) UnityEngine.Debug.Log("Point outside of map: " + points[i].x + ", " + points[i].y);
             }
     
             return points;
         }
         public Voronoi GenerateVoronoi(List<Vector2f> points, int iterations)
         {
-            return new Voronoi(points,new Rectf(0,0,512,512),iterations);
+            return new Voronoi(points,new Rectf(0,0,SIZE,SIZE),iterations);
         }
 
         public List<Corner> LandCorners(List<Corner> corners) 
@@ -250,6 +252,7 @@ namespace Map
         private void BuildGraph(List<Vector2f> points, Voronoi voronoi)
         {
             var libEdges = voronoi.Edges;
+
             Dictionary<Vector2f, Center> centerLookup = new();
 
             // Build Center objects for each of the points, and a lookup map
@@ -265,7 +268,6 @@ namespace Map
                 centers.Add(p);
                 centerLookup.Add(point, p);
             }
-            UnityEngine.Debug.Log(corners.Count);
 
             // Workaround for Voronoi lib bug: we need to call region()
             // before Edges or neighboringSites are available
@@ -425,6 +427,218 @@ namespace Map
                     addToCenterList(edge.v1.touches, edge.d1);
                 }
             }
+            ClipVoronoiEdges();
+            // find and set all corners border value if it is on the border of the map using lamda expression
+            corners.ForEach(c => c.border = c.point.x == 0 || c.point.x == SIZE || c.point.y == 0 || c.point.y == SIZE);
+
+        }
+        // This is for any voronoi corners that are outside of the map. We first go through all corners,
+        // if the corner is outside of the map, we add it to a list. Then we go through the list and
+        // find the coresponding edge. We then calculate the intersection point of the edge and the map border
+        // and set the out of bounds corner to the intersection point.
+        public Dictionary<Corner, (Vector2f, Vector2f)> outsideCornersDict; // 0 = top, 1 = bottom, 2 = right, 3 = left
+        public List<Corner> outsideCorners;
+        public void ClipVoronoiEdges()
+        {
+            Rectf bounds = new Rectf(0, 0, SIZE, SIZE);
+            outsideCornersDict = new();
+            
+
+            foreach (var q in corners)
+            {
+                bool added = false;
+                if (q.point.x < 0)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.top), new Vector2f(bounds.left, bounds.bottom)));
+                    added = true;
+                }
+                else if(q.point.x > SIZE)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.right, bounds.top), new Vector2f(bounds.right, bounds.bottom)));
+                    added = true;
+                }
+                else if(q.point.y < 0)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.top), new Vector2f(bounds.right, bounds.top)));
+                    added = true;
+                }
+                else if(q.point.y > SIZE)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.bottom), new Vector2f(bounds.right, bounds.bottom)));
+                    added = true;
+                }
+                if(added)
+                {
+                    foreach(var p in q.adjacent)
+                    {
+                        FindIntersection(ref p.point, q.point, outsideCornersDict[q].Item1, outsideCornersDict[q].Item2);
+                    }
+
+                }
+            }
+            outsideCorners = new List<Corner>();
+            foreach(var q in corners)
+            {
+                if(q.point.x < 0 || q.point.x > SIZE || q.point.y < 0 || q.point.y > SIZE)
+                {
+                    outsideCorners.Add(q);
+                }
+            }
+            // Each list corners, centers and edges contains references to related corners, we need to go through each veryOutsideCorner
+            // and remove any references from all three lists.
+            foreach(var q in outsideCorners)
+            {
+                if(q.point.x >= 0 && q.point.x <= SIZE && q.point.y >= 0 && q.point.y <= SIZE)
+                {
+                    UnityEngine.Debug.Log("That wasn't supposed to happen");
+                    continue;
+                }
+                corners.Remove(q);
+                List<Edge> edgesToRemove = edges.Where(x => x.v0 == q || x.v1 == q).ToList();
+                // Set the edge's v0 or v1 to null, depending on which one is the outside corner
+                foreach(var p in edgesToRemove)
+                {
+                    if(p.v0 == q)
+                    {
+                        p.v0 = null;
+                    }
+                    else if(p.v1 == q)
+                    {
+                        p.v1 = null;
+                    }
+                }
+                edges.RemoveAll(edgesToRemove.Contains);
+                
+                List<Center> centersToRemove = centers.Where(x => x.corners.Contains(q)).ToList();
+                foreach(var p in centersToRemove)
+                {
+                    p.corners.Remove(q);
+                }
+                centers.RemoveAll(centersToRemove.Contains);
+
+                List<Corner> cornersToRemove = corners.Where(x => x.adjacent.Contains(q)).ToList();
+                foreach(var p in cornersToRemove)
+                {
+                    p.adjacent.Remove(q);
+                }
+
+                corners.RemoveAll(cornersToRemove.Contains);
+            }
+            /* foreach (var q in outsideCornersDict.Keys)
+            {
+                foreach (var p in q.adjacent)
+                {
+                    if(p.point.x > 0 && p.point.x < SIZE && p.point.y > 0 && p.point.y < SIZE)
+                    {
+                        Edge edge = LookupEdgeFromCorner(q, p);
+                        if(edge != null)
+                        {
+                            FindIntersection(ref q.point, p.point, outsideCornersDict[q].Item1, outsideCornersDict[q].Item2);
+                        }
+                    }
+                    else if(p.point.x < 0 && p.point.x > SIZE && p.point.y < 0 && p.point.y > SIZE)
+                    {
+                        veryOutsideCorners.Add(p);
+                    }
+                }
+            } */
+            /* foreach(var q in outsideCorners)
+            {
+                foreach(var p in q.adjacent)
+                {
+                    if(outsideCorners.Contains(p))
+                    {
+                        veryOutsideCorners.Add(q);
+                        break;
+                    }
+                }
+            }
+            foreach(var q in veryOutsideCorners)
+            {
+                corners.Remove(q);
+                List<Edge> edgesToRemove = edges.Where(x => x.v0 == q || x.v1 == q).ToList();
+                edges.RemoveAll(edgesToRemove.Contains);
+            } */    
+            /*outsideCornersDict = new();
+            foreach (var q in corners)
+            {
+                if (q.point.x < 0)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.top), new Vector2f(bounds.left, bounds.bottom)));
+                }
+                else if(q.point.x > SIZE)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.right, bounds.top), new Vector2f(bounds.right, bounds.bottom)));
+                }
+                else if(q.point.y < 0)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.top), new Vector2f(bounds.left, bounds.top)));
+                }
+                else if(q.point.y > SIZE)
+                {
+                    outsideCornersDict.Add(q, (new Vector2f (bounds.left, bounds.bottom), new Vector2f(bounds.left, bounds.bottom)));
+                }
+            }
+            List<Corner> allOutsideCornersDict = new();
+            foreach (var q in outsideCornersDict.Keys)
+            {
+                foreach (var p in q.adjacent)
+                {
+                    if(p.point.x > 0 && p.point.x <= SIZE && p.point.y > 0 && p.point.y < SIZE)
+                    {
+                        Edge edge = LookupEdgeFromCorner(q, p);
+                        if(edge != null)
+                        {
+                            FindIntersection(ref q.point, p.point, outsideCornersDict[q].Item1, outsideCornersDict[q].Item2);
+                        }
+                    }
+                    else
+                    {
+                        allOutsideCornersDict.Add(p);
+                    }
+                }
+            }
+            foreach (var q in allOutsideCornersDict)
+            {
+                corners.Remove(q);
+            } */
+
+        }
+
+        // Function to find intersection point
+        public static void FindIntersection(ref Vector2f outside, Vector2f inside, Vector2f boundA, Vector2f boundB)
+        {
+            float a1 = inside.y - outside.y;
+            float b1 = outside.x - inside.x;
+            float c1 = (a1 * outside.x) + (b1 * outside.y);
+
+            float a2 = boundB.y - boundA.y;
+            float b2 = boundA.x - boundB.x;
+            float c2 = (a2 * boundA.x) + (b2 * boundA.y);
+
+            float det = a1 * b2 - a2 * b1;
+            if(det == 0)
+            {
+                // doesn't intersect
+            }
+            else
+            {
+                float x = (b2 * c1 - b1 * c2) / det;
+                float y = (a1 * c2 - a2 * c1) / det;
+
+                // Check if the intersection point is within the bounds of both line segments
+                if (x >= Math.Min(outside.x, inside.x) && x <= Math.Max(outside.x, inside.x) &&
+                    y >= Math.Min(outside.y, inside.y) && y <= Math.Max(outside.y, inside.y) &&
+                    x >= Math.Min(boundA.x, boundB.x) && x <= Math.Max(boundA.x, boundB.x) &&
+                    y >= Math.Min(boundA.y, boundB.y) && y <= Math.Max(boundA.y, boundB.y))
+                {
+                    outside = new Vector2f(x, y);
+                }
+                else
+                {
+                    // would intersect if the line was infinite
+                }
+            }
         }
         // Determine elevations and water at Voronoi corners. By
         // construction, we have no local minima. This is important for
@@ -441,7 +655,6 @@ namespace Map
             
             foreach (var q in corners) {
                 q.water = !Inside(q.point);
-                 UnityEngine.Debug.Log(q.water);
             }
 
             foreach (var q in corners) {
@@ -467,7 +680,6 @@ namespace Map
                     var newElevation = 0.01f + q.elevation;
                     if (!q.water && !s.water) {
                         newElevation += 1;
-                        UnityEngine.Debug.Log(newElevation);
                         /* if (needsMoreRandomness) {
                             // HACK: the map looks nice because of randomness of
                             // points, randomness of rivers, and randomness of
@@ -487,6 +699,8 @@ namespace Map
                     }
                 }
             }
+            /* foreach(var q in corners)
+                UnityEngine.Debug.Log(q.elevation); */
         }
         // Change the overall distribution of elevations so that lower
         // elevations are more common than higher
@@ -835,7 +1049,17 @@ namespace Map
         }
         // Determine whether a given point should be on the island or in the water.
         public bool Inside(Vector2f p) {
-            return islandShape(new Vector2f(2*(p.x/SIZE - 0.5), 2*(p.y/SIZE - 0.5)));
+            // all points should have x and y's between 0 and 512 (SIZE) normalized point (x and y are -1 to +1)
+            
+            float x = 2 * (p.x / SIZE) - 1;
+            float y = 2 * (p.y / SIZE) - 1;
+            /* if(x > 1 || x < -1 || y > 1 || y < -1)
+            {
+                UnityEngine.Debug.Log(x + ", " + y);
+                return false;
+            } */
+
+            return islandShape(new Vector2f(x, y));
         }
     }
 

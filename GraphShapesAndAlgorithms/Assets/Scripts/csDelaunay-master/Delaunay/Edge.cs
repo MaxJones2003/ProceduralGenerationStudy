@@ -311,3 +311,109 @@ namespace csDelaunay {
 		#endregion
 	}
 }
+
+/* public void ClipVertices(Rectf bounds) {
+			float xmin = bounds.x;
+			float ymin = bounds.y;
+			float xmax = bounds.right;
+			float ymax = bounds.bottom;
+
+			Vertex vertex0, vertex1;
+			float x0, x1, y0, y1;
+
+			if (a == 1 && b >= 0) {
+				vertex0 = rightVertex;
+				vertex1 = leftVertex;
+			} else {
+				vertex0 = leftVertex;
+				vertex1 = rightVertex;
+			}
+			
+
+			if (a == 1) {
+				y0 = ymin;
+				if (vertex0 != null && vertex0.y > ymin) {
+					y0 = vertex0.y;
+				}
+				if (y0 > ymax) {
+					return;
+				}
+				x0 = c - b * y0;
+
+				y1 = ymax;
+				if (vertex1 != null && vertex1.y < ymax) {
+					y1 = vertex1.y;
+				}
+				if (y1 < ymin) {
+					return;
+				}
+				x1 = c - b * y1;
+
+				if ((x0 > xmax && x1 > xmax) || (x0 < xmin && x1 < xmin)) {
+					return;
+				}
+
+				if (x0 > xmax) {
+					x0 = xmax;
+					y0 = (c - x0)/b;
+				} else if (x0 < xmin) {
+					x0 = xmin;
+					y0 = (c - x0)/b;
+				}
+
+				if (x1 > xmax) {
+					x1 = xmax;
+					y1 = (c - x1)/b;
+				} else if (x1 < xmin) {
+					x1 = xmin;
+					y1 = (c - x1)/b;
+				}
+			} else {
+				x0 = xmin;
+				if (vertex0 != null && vertex0.x > xmin) {
+					x0 = vertex0.x;
+				}
+				if (x0 > xmax) {
+					return;
+				}
+				y0 = c - a * x0;
+
+				x1 = xmax;
+				if (vertex1 != null && vertex1.x < xmax) {
+					x1 = vertex1.x;
+				}
+				if (x1 < xmin) {
+					return;
+				}
+				y1 = c - a * x1;
+
+				if ((y0 > ymax && y1 > ymax) || (y0 < ymin && y1 < ymin)) {
+					return;
+				}
+
+				if (y0 > ymax) {
+					y0 = ymax;
+					x0 = (c - y0)/a;
+				} else if (y0 < ymin) {
+					y0 = ymin;
+					x0 = (c - y0)/a;
+				}
+
+				if (y1 > ymax) {
+					y1 = ymax;
+					x1 = (c - y1)/a;
+				} else if (y1 < ymin) {
+					y1 = ymin;
+					x1 = (c - y1)/a;
+				}
+			}
+
+			clippedVertices = new LRCollection<Vector2f>();
+			if (vertex0 == leftVertex) {
+				clippedVertices[LR.LEFT] = new Vector2f(x0, y0);
+				clippedVertices[LR.RIGHT] = new Vector2f(x1, y1);
+			} else {
+				clippedVertices[LR.RIGHT] = new Vector2f(x0, y0);
+				clippedVertices[LR.LEFT] = new Vector2f(x1, y1);
+			}
+		}*/

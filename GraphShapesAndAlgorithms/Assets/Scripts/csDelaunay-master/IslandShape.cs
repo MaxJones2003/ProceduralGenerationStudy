@@ -8,6 +8,7 @@ public enum IslandShapeEnum
     Square,
     Blob
 }
+
 public class IslandShape
 {
     // This class has factory functions for generating islands of
@@ -22,10 +23,10 @@ public class IslandShape
     public static Func<Vector2f, bool> MakeRadial(int seed)
     {
         System.Random islandRandom = new System.Random(seed);
-        int bumps = UnityEngine.Random.Range(1, 6);
-        float startAngle = UnityEngine.Random.Range(0f, 2 * Mathf.PI);
-        float dipAngle = UnityEngine.Random.Range(0f, 2 * Mathf.PI);
-        float dipWidth = UnityEngine.Random.Range(0.2f, 0.7f);
+        int bumps = PRandom.NextIntRange(islandRandom, 1, 6);
+        float startAngle = PRandom.NextDoubleRange(islandRandom, 0f, 2 * Mathf.PI);
+        float dipAngle = PRandom.NextDoubleRange(islandRandom, 0f, 2 * Mathf.PI);
+        float dipWidth = PRandom.NextDoubleRange(islandRandom, 0.2f, 0.7f);
 
         bool Inside(Vector2f q)
         {
@@ -45,11 +46,36 @@ public class IslandShape
 
         return Inside;
     }
+    /* static public function makeRadial(seed:int):Function {
+    var islandRandom:PM_PRNG = new PM_PRNG();
+    islandRandom.seed = seed;
+    var bumps:int = islandRandom.nextIntRange(1, 6);
+    var startAngle:Number = islandRandom.nextDoubleRange(0, 2*Math.PI);
+    var dipAngle:Number = islandRandom.nextDoubleRange(0, 2*Math.PI);
+    var dipWidth:Number = islandRandom.nextDoubleRange(0.2, 0.7);
+    
+    function inside(q:Point):Boolean {
+      var angle:Number = Math.atan2(q.y, q.x);
+      var length:Number = 0.5 * (Math.max(Math.abs(q.x), Math.abs(q.y)) + q.length);
+
+      var r1:Number = 0.5 + 0.40*Math.sin(startAngle + bumps*angle + Math.cos((bumps+3)*angle));
+      var r2:Number = 0.7 - 0.20*Math.sin(startAngle + bumps*angle - Math.sin((bumps+2)*angle));
+      if (Math.abs(angle - dipAngle) < dipWidth
+          || Math.abs(angle - dipAngle + 2*Math.PI) < dipWidth
+          || Math.abs(angle - dipAngle - 2*Math.PI) < dipWidth) {
+        r1 = r2 = 0.2;
+      }
+      return  (length < r1 || (length > r1*ISLAND_FACTOR && length < r2));
+    }
+
+    return inside;
+  } */
+    
 
     // The Perlin-based island combines perlin noise with the radius
     public static Func<Vector2f, bool> MakePerlin(int seed)
     {
-        Texture2D perlinTexture = new Texture2D(256, 256);
+        Texture2D perlinTexture = new Texture2D(512, 512);
         perlinTexture.SetPixels(GeneratePerlinNoise(seed));
         perlinTexture.Apply();
 
