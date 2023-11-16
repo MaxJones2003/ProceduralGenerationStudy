@@ -16,59 +16,32 @@ public class VoronoiDiagram : MonoBehaviour {
     private Dictionary<Vector2f, Site> sites;
     private Dictionary<Vector2f, Site> boundedSites;
     private List<csDelaunay.Edge> edges;
-    int seed;
-    Voronoi voronoi;
+    public string seed;
     Rectf bounds;
     Map.Map map;
  
-    /* public void GenerateVoronoi() {
-        // Create your sites (lets call that the center of your polygons)
-        List<Vector2f> points = CreateRandomPoints();
-       
-        // Create the bounds of the voronoi diagram
-        // Use Rectf instead of Rect; it's a struct just like Rect and does pretty much the same,
-        // but like that it allows you to run the delaunay library outside of unity (which mean also in another tread)
-        
-       
-        // There is a two ways you can create the voronoi diagram: with or without the lloyd relaxation
-        // Here I used it with 2 iterations of the lloyd relaxation
-        voronoi = new Voronoi(points,bounds,iterations);
 
- 
-        // But you could also create it without lloyd relaxtion and call that function later if you want
-        //Voronoi voronoi = new Voronoi(points,bounds);
-        //voronoi.LloydRelaxation(5);
- 
-        // Now retreive the edges from it, and the new sites position if you used lloyd relaxtion
-        sites = voronoi.SitesIndexedByLocation;
-        edges = voronoi.Edges;
-        FindBoundSites();
-        DisplayVoronoiDiagram();
-    } */
     public int stage;
 
     public List<Map.Center> mapCenters;
     public List<Map.Corner> mapCorners;
     public List<Map.Edge> mapEdges;
+
+
+    Vector3[] meshVertices;
+    int[] meshTriangles;
+
     public void GenerateVoronoi()
     {
-        bounds = new Rectf(0,0,512,512);
-        map = new Map.Map(polygonNumber, 512, iterations, stage);
-        map.NewIsland(islandShape, polygonNumber, seed);
+        int seedInt = Seed.Instance.InitializeRandom(seed);
+        bounds = new Rectf(0,0,1000,1000);
+        map = new Map.Map(polygonNumber, 1000, iterations, stage);
+        map.NewIsland(islandShape, polygonNumber, seedInt);
         mapCenters = map.centers;
         mapCorners = map.corners;
         mapEdges = map.edges;
 
-        if(displayPointAtIndex < 0) displayPointAtIndex = 0;
-        if(displayPointAtIndex >= mapCorners.Count) displayPointAtIndex = mapCorners.Count - 1;
-
-        currentCorner = mapCorners[displayPointAtIndex];
-        displayCorners = currentCorner.adjacent;
-        displayEdges = currentCorner.protrudes;
-
-        currentCenter = mapCenters[displayPointAtIndex];
-        displayCenters = currentCenter.neighbors;
-        displayCenterEdges = currentCenter.borders;
+        GenerateMesh(map.corners);
     }
     public List<Vector2f> CreateRandomPoints() {
         // Use Vector2f, instead of Vector2
@@ -80,11 +53,45 @@ public class VoronoiDiagram : MonoBehaviour {
  
         return points;
     }
+
+    public void GenerateMesh(List<Corner> corners)
+    {
+        // Create a new mesh
+        Mesh mesh = new Mesh();
+        GetComponent<MeshFilter>().mesh = mesh;
+
+        // Vertices array to hold the corner positions
+        Vector3[] vertices = new Vector3[corners.Count];
+
+        // Assign positions and adjust height based on elevation
+        for (int i = 0; i < corners.Count; i++)
+        {
+            vertices[i] = new Vector3(corners[i].point.x, corners[i].elevation, corners[i].point.y);
+        }
+
+        // Triangles array to define the mesh topology
+        int[] triangles = new int[(corners.Count - 2) * 3];
+
+        // Triangulate the corners
+        for (int i = 0, j = 0; i < triangles.Length; i += 3, j++)
+        {
+            triangles[i] = 0;
+            triangles[i + 1] = j + 1;
+            triangles[i + 2] = j + 2;
+        }
+
+        // Assign the vertices and triangles to the mesh
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+
+        // Recalculate normals for lighting
+        mesh.RecalculateNormals();
+    }
  
     // Here is a very simple way to display the result using a simple bresenham line algorithm
     // Just attach this script to a quad
     private void DisplayVoronoiDiagram() {
-        Texture2D tx = new Texture2D(512,512);
+        Texture2D tx = new Texture2D(1000,1000);
         foreach (KeyValuePair<Vector2f,Site> kv in sites) {
             DrawLargePixel(tx, (int)kv.Key.x, (int)kv.Key.y, Color.red, 1);
         }
@@ -142,74 +149,102 @@ public class VoronoiDiagram : MonoBehaviour {
         }
     }
 
-    public void FindBoundSites()
+
+    public Color GetBiomeColor(Corner p)
     {
-        
-        boundedSites = new();
-
-        foreach(var siteDic in sites)
+        if (p.ocean)
         {
-            Site site = siteDic.Value;
-            foreach(csDelaunay.Edge edge in site.Edges)
-            {
-                if(edge.ClippedEnds == null) continue;
-
-                if(BoundsCheck.Check(edge.ClippedEnds[LR.LEFT], bounds) != 0)
-                {
-                    boundedSites.Add(siteDic.Key, site);
-                    break;
-                }
-                else if(BoundsCheck.Check(edge.ClippedEnds[LR.RIGHT], bounds) != 0)
-                {
-                    boundedSites.Add(siteDic.Key, site);
-                    break;
-                }
-            }
+            return Color.blue; // You can replace this with your desired ocean color
+        }
+        else if (p.water)
+        {
+            if (p.elevation < 0.1) return Color.green; // Marsh color
+            if (p.elevation > 0.8) return Color.white; // Ice color
+            return Color.blue; // Lake color
+        }
+        else if (p.coast)
+        {
+            return Color.yellow; // Beach color
+        }
+        else if (p.elevation > 0.8)
+        {
+            if (p.moisture > 0.50) return Color.white; // Snow color
+            else if (p.moisture > 0.33) return Color.gray; // Tundra color
+            else if (p.moisture > 0.16) return new Color(0.5f, 0.5f, 0.5f); // Bare color
+            else return Color.black; // Scorched color
+        }
+        else if (p.elevation > 0.6)
+        {
+            if (p.moisture > 0.66) return new Color(0.2f, 0.5f, 0.2f); // Taiga color
+            else if (p.moisture > 0.33) return new Color(0.4f, 0.3f, 0.1f); // Shrubland color
+            else return Color.yellow; // Temperate Desert color
+        }
+        else if (p.elevation > 0.3)
+        {
+            if (p.moisture > 0.83) return new Color(0.1f, 0.4f, 0.1f); // Temperate Rain Forest color
+            else if (p.moisture > 0.50) return new Color(0.2f, 0.6f, 0.2f); // Temperate Deciduous Forest color
+            else if (p.moisture > 0.16) return new Color(0.6f, 0.8f, 0.3f); // Grassland color
+            else return Color.yellow; // Temperate Desert color
+        }
+        else
+        {
+            if (p.moisture > 0.66) return new Color(0.0f, 0.2f, 0.0f); // Tropical Rain Forest color
+            else if (p.moisture > 0.33) return new Color(0.1f, 0.3f, 0.1f); // Tropical Seasonal Forest color
+            else if (p.moisture > 0.16) return new Color(0.6f, 0.8f, 0.3f); // Grassland color
+            else return new Color(0.8f, 0.8f, 0.4f); // Subtropical Desert color
         }
     }
+
+    public Color BlendColors(Color color1, Color color2, float blendFactor)
+    {
+        blendFactor = Mathf.Clamp01(blendFactor);
+
+        float r = Mathf.Lerp(color1.r, color2.r, blendFactor);
+        float g = Mathf.Lerp(color1.g, color2.g, blendFactor);
+        float b = Mathf.Lerp(color1.b, color2.b, blendFactor);
+        float a = Mathf.Lerp(color1.a, color2.a, blendFactor);
+
+        return new Color(r, g, b, a);
+    }
+
 
     #region Gizmos
     void OnDrawGizmos()
     {
         if(map == null) return;
 
+
+        
+        
         foreach(var corner in map.corners)
         {
-            if(corner.border)
-                Gizmos.color = Color.blue;
-            else
-                Gizmos.color = Color.green;
+            Gizmos.color = GetBiomeColor(corner);
 
-            Gizmos.DrawSphere(new Vector3(corner.point.x/100, corner.elevation, corner.point.y/100), 0.01f);
-        }
+            Gizmos.DrawSphere(new Vector3(corner.point.x/100, corner.elevation, corner.point.y/100), 0.05f);
+        } 
 
         // only draw the edges that are within the border
         
         foreach(Map.Edge edge in map.edges)
         {
-            // draw a red sphere at the d0 and d1 points
-            /* Gizmos.color = Color.red;
+            /* // draw a red sphere at the d0 and d1 points
+            Gizmos.color = Color.red;
 
             Gizmos.DrawSphere(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), 0.01f);
 
-            Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100), 0.01f); */
+            Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100), 0.01f); 
             // draw a black line between d0 and d1
             Gizmos.color = Color.black;
-            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100));
+            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100)); */
 
             // draw a blue sphere at the v0 and v1 points
-            /* Gizmos.color = Color.blue;
-            if(edge.v0.border)
-                Gizmos.DrawSphere(new Vector3(edge.v0.point.x/100, edge.v0.elevation, edge.v0.point.y/100), 0.01f);
-            if(edge.v1.border)
-                Gizmos.DrawSphere(new Vector3(edge.v1.point.x/100, edge.v1.elevation, edge.v1.point.y/100), 0.01f); */
             // draw a white line between v0 and v1
             if(edge.v0 != null && edge.v1 != null)
             {
-                Gizmos.color = Color.white;
+                if(edge.river > 0) Gizmos.color = Color.blue;
+                else Gizmos.color = BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f);
                 Gizmos.DrawLine(new Vector3(edge.v0.point.x/100, edge.v0.elevation, edge.v0.point.y/100), new Vector3(edge.v1.point.x/100, edge.v1.elevation, edge.v1.point.y/100));
             }
-
         }
 
         // Draw a boundry with the Rectf bounds it has a float for the top bottom left and right
@@ -219,34 +254,6 @@ public class VoronoiDiagram : MonoBehaviour {
         Gizmos.DrawLine(new Vector3(bounds.left/100, 0, bounds.bottom/100), new Vector3(bounds.right/100, 0, bounds.bottom/100));
         Gizmos.DrawLine(new Vector3(bounds.left/100, 0, bounds.top/100), new Vector3(bounds.left/100, 0, bounds.bottom/100));
         Gizmos.DrawLine(new Vector3(bounds.right/100, 0, bounds.top/100), new Vector3(bounds.right/100, 0, bounds.bottom/100));
-
-        /* Gizmos.color = Color.green;
-        Gizmos.DrawSphere(new Vector3(currentCorner.point.x/100, currentCorner.elevation, currentCorner.point.y/100), 0.02f);
-
-        Gizmos.color = Color.yellow;
-        foreach(var corner in displayCorners)
-        {
-            Gizmos.DrawSphere(new Vector3(corner.point.x/100, corner.elevation, corner.point.y/100), 0.015f);
-        }
-        Gizmos.color = Color.cyan;
-        foreach(var edge in displayEdges)
-        {
-            Gizmos.DrawLine(new Vector3(edge.v0.point.x/100, edge.v0.elevation, edge.v0.point.y/100), new Vector3(edge.v1.point.x/100, edge.v1.elevation, edge.v1.point.y/100));
-        }
-
-        Gizmos.color = Color.green;
-        Gizmos.DrawSphere(new Vector3(currentCenter.point.x/100, currentCenter.elevation, currentCenter.point.y/100), 0.02f);
-
-        Gizmos.color = Color.yellow;
-        foreach(var center in displayCenters)
-        {
-            Gizmos.DrawSphere(new Vector3(center.point.x/100, center.elevation, center.point.y/100), 0.015f);
-        }
-        Gizmos.color = Color.cyan;
-        foreach(var edge in displayCenterEdges)
-        {
-            Gizmos.DrawLine(new Vector3(edge.v0.point.x/100, edge.v0.elevation, edge.v0.point.y/100), new Vector3(edge.v1.point.x/100, edge.v1.elevation, edge.v1.point.y/100));
-        } */
     }
     public int displayPointAtIndex = 0;
     private Corner currentCorner;

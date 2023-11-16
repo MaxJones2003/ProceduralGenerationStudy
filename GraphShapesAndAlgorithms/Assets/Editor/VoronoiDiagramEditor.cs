@@ -14,10 +14,7 @@ public class VoronoiDiagramEditor : Editor
         {
             voronoi.GenerateVoronoi();
         }
-        if(GUILayout.Button("Check bounderies"))
-        {
-            voronoi.FindBoundSites();
-        }
+
         base.OnInspectorGUI();
     }
 }

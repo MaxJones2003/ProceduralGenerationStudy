@@ -224,7 +224,7 @@ namespace Map
         public List<Vector2f> CreateRandomPoints(int size) 
         {
             // Use Vector2f, instead of Vector2
-            // Vector2f is pretty much the same than Vector2, but like you could run Voronoi in another thread
+            // Vector2f is pretty much the same as Vector2, but like you could run Voronoi in another thread
             List<Vector2f> points = new List<Vector2f>();
             for (int i = 0; i < size; i++) {
                 points.Add(new Vector2f(UnityEngine.Random.Range(0,SIZE), UnityEngine.Random.Range(0,SIZE)));
@@ -285,44 +285,7 @@ namespace Map
             // nearby buckets. When we fail to find one, we'll create a new
             // Corner object.
             Vector2f InvalidVector2f = new Vector2f(float.NaN, float.NaN);
-            /* Dictionary<float,Corner> _cornerMap = new();
 
-            Corner makeCorner(Vector2f point) {
-                Corner q;
-
-                if (point.x == float.NaN || point.y == float.NaN) return null;
-                float bucket = 0;
-
-                for (bucket = (point.x) - 1; bucket <= (point.x) + 1; bucket++) {
-                    if(_cornerMap.ContainsKey(bucket))
-                    {
-                        foreach(var _q in _cornerMap[bucket]) {
-                            var dx = point.x - _q.point.x;
-                            var dy = point.y - _q.point.y;
-                            if (dx * dx + dy * dy < 1e-6)
-                            {
-                                return _q;
-                            }
-                        }
-
-                    }
-                }
-
-                bucket = point.x;
-                if (!_cornerMap.ContainsKey(bucket)) _cornerMap.Add(bucket, new Corner());
-                else return _cornerMap[bucket];
-                q = new Corner();
-                q.index = corners.Count;
-                corners.Add(q);
-                q.point = point;
-                q.border = (point.x == 0 || point.x == SIZE
-                            || point.y == 0 || point.y == SIZE);
-                q.touches = new List<Center>();
-                q.protrudes = new List<Edge>();
-                q.adjacent = new List<Corner>();
-                _cornerMap.Add(bucket, q);
-                return q;
-            } */
            Dictionary<Vector2f, Corner> _cornerMap = new Dictionary<Vector2f, Corner>();
 
             Corner makeCorner(Vector2f point)
@@ -429,8 +392,80 @@ namespace Map
             }
             ClipVoronoiEdges();
             // find and set all corners border value if it is on the border of the map using lamda expression
-            corners.ForEach(c => c.border = c.point.x == 0 || c.point.x == SIZE || c.point.y == 0 || c.point.y == SIZE);
 
+            foreach(Corner c in corners)
+            {
+                if(c.point == Vector2f.zero)
+                {
+                    var testCorner = c;
+                    corners.Remove(testCorner);
+                    corners.Remove(testCorner.adjacent[0]);
+                    break;  
+                }
+            }
+
+            //UnityEngine.Debug.Log(corner.protrudes.Count);
+            corners.ForEach(c => c.border = c.point.x == 0 || c.point.x == SIZE || c.point.y == 0 || c.point.y == SIZE);
+            //DeleteEdgesWithVoidCorners();
+
+        }
+       
+        public void RemoveArtifactCorner(Corner artifact)
+        {
+            // Remove the corner from all lists
+            corners.Remove(artifact);
+            List<Center> infectedCenters = artifact.touches;
+            List<Corner> infectedCorners = artifact.adjacent;
+            List<Edge> infectedEdges = artifact.protrudes;
+
+            foreach(var center in infectedCenters)
+            {
+                center.corners.Remove(artifact);
+            }
+
+            foreach(var corner in infectedCorners)
+            {
+                corner.adjacent.Remove(artifact);
+            }
+
+            foreach(var edge in infectedEdges)
+            {
+                bool p = edge.v0 == artifact;
+
+                if(p)
+                {
+                    edge.v0 = null;
+                }
+                else
+                {
+                    edge.v1 = null;
+                }
+            }
+
+            corners.Remove(artifact);
+        }
+        public void DeleteEdgesWithVoidCorners()
+        {
+            List<Edge> voidEdges = new();
+            foreach(var edge in edges)
+            {
+                if(edge.v0 == null || edge.v1 == null)
+                {
+                    voidEdges.Add(edge);
+                }
+            }
+
+            foreach(var q in corners)
+            {
+                // remove all edges that have a void corner
+                q.protrudes.RemoveAll(x => voidEdges.Contains(x));
+            }
+            foreach(var q in centers)
+            {
+                // remove all edges that have a void corner
+                q.borders.RemoveAll(x => voidEdges.Contains(x));
+            }
+            edges.RemoveAll(x => voidEdges.Contains(x));
         }
         // This is for any voronoi corners that are outside of the map. We first go through all corners,
         // if the corner is outside of the map, we add it to a list. Then we go through the list and
@@ -507,22 +542,21 @@ namespace Map
                         p.v1 = null;
                     }
                 }
-                edges.RemoveAll(edgesToRemove.Contains);
+                //edges.RemoveAll(edgesToRemove.Contains);
                 
                 List<Center> centersToRemove = centers.Where(x => x.corners.Contains(q)).ToList();
                 foreach(var p in centersToRemove)
                 {
                     p.corners.Remove(q);
                 }
-                centers.RemoveAll(centersToRemove.Contains);
+                //centers.RemoveAll(centersToRemove.Contains);
 
                 List<Corner> cornersToRemove = corners.Where(x => x.adjacent.Contains(q)).ToList();
                 foreach(var p in cornersToRemove)
                 {
                     p.adjacent.Remove(q);
                 }
-
-                corners.RemoveAll(cornersToRemove.Contains);
+                //corners.RemoveAll(cornersToRemove.Contains);
             }
             /* foreach (var q in outsideCornersDict.Keys)
             {
@@ -604,7 +638,6 @@ namespace Map
             } */
 
         }
-
         // Function to find intersection point
         public static void FindIntersection(ref Vector2f outside, Vector2f inside, Vector2f boundA, Vector2f boundB)
         {
@@ -648,7 +681,7 @@ namespace Map
         // up flowing out through them. Also by construction, lakes
         // often end up on river paths because they don't raise the
         // elevation as much as other terrain does.
-        public void AssignCornerElevations() 
+        /*public void AssignCornerElevations() 
         {
             //var q:Corner, s:Corner;
             Queue<Corner> queue = new();
@@ -689,7 +722,7 @@ namespace Map
                             // think there must be a better way. This hack is only
                             // used with square/hexagon grids.
                             newElevation += mapRandom.nextDouble();
-                        } */
+                        } 
                     }
                     // If this point changed, we'll add it to the queue so
                     // that we can process its neighbors too.
@@ -698,9 +731,67 @@ namespace Map
                         queue.Enqueue(s);
                     }
                 }
-            }
+            }*/
             /* foreach(var q in corners)
-                UnityEngine.Debug.Log(q.elevation); */
+                UnityEngine.Debug.Log(q.elevation); 
+        }*/
+        public void AssignCornerElevations()
+        {
+            Corner q, s;
+            Queue<Corner> queue = new Queue<Corner>();
+
+            foreach (var corner in corners)
+            {
+                corner.water = !Inside(corner.point);
+            }
+
+            foreach (var corner in corners)
+            {
+                // The edges of the map are elevation 0
+                if (corner.border)
+                {
+                    corner.elevation = 0.0f;
+                    queue.Enqueue(corner);
+                }
+                else
+                {
+                    corner.elevation = float.PositiveInfinity;
+                }
+            }
+
+            // Traverse the graph and assign elevations to each point.
+            // As we move away from the map border, increase the elevations.
+            // This guarantees that rivers always have a way down to the coast by going downhill (no local minima).
+            while (queue.Count > 0)
+            {
+                q = queue.Dequeue();
+
+                foreach (var adjacentCorner in q.adjacent)
+                {
+                    // Every step up is epsilon over water or 1 over land.
+                    // The number doesn't matter because we'll rescale the elevations later.
+                    float newElevation = 0.01f + q.elevation;
+                    
+                    if (!q.water && !adjacentCorner.water)
+                    {
+                        newElevation += 1;
+
+                        // HACK: Injecting some randomness to make maps look nicer.
+                        /* if (needsMoreRandomness)
+                        {
+                            newElevation += (float)mapRandom.NextDouble();
+                        } */
+                    }
+
+                    // If this point changed, we'll add it to the queue
+                    // so that we can process its neighbors too.
+                    if (newElevation < adjacentCorner.elevation)
+                    {
+                        adjacentCorner.elevation = newElevation;
+                        queue.Enqueue(adjacentCorner);
+                    }
+                }
+            }
         }
         // Change the overall distribution of elevations so that lower
         // elevations are more common than higher
@@ -718,7 +809,7 @@ namespace Map
                 // Let y(x) be the total area that we want at elevation <= x.
                 // We want the higher elevations to occur less than lower
                 // ones, and set the area to be y(x) = 1 - (1-x)^2.
-                float y = i/(locations.Count-1);
+                float y = i/(float)(locations.Count-1);
                 // Now we have to solve for x, given the known y.
                 //  *  y = 1 - (1-x)^2
                 //  *  y = 1 - (1 - 2x + x^2)
@@ -1063,5 +1154,30 @@ namespace Map
         }
     }
 
+    public struct Region
+    {
+        #region Biome Factors
+        public float desiredElavation;
+        public float desiredMoisture;
+        public float desiredTemperature;
+        #endregion
+
+        #region Water Features
+        public float riverFrequency;
+        public float riverSize;
+        public float lakeFrequency;
+        #endregion
+
+        // Constructor
+        public Region(float desiredElavation, float desiredMoisture, float desiredTemperature, float riverFrequency, float riverSize, float lakeFrequency)
+        {
+            this.desiredElavation = desiredElavation;
+            this.desiredMoisture = desiredMoisture;
+            this.desiredTemperature = desiredTemperature;
+            this.riverFrequency = riverFrequency;
+            this.riverSize = riverSize;
+            this.lakeFrequency = lakeFrequency;
+        }
+    }
 }
 
