@@ -390,7 +390,7 @@ namespace Map
                     addToCenterList(edge.v1.touches, edge.d1);
                 }
             }
-            ClipVoronoiEdges();
+            //ClipVoronoiEdges();
             // find and set all corners border value if it is on the border of the map using lamda expression
 
             foreach(Corner c in corners)
@@ -405,7 +405,8 @@ namespace Map
             }
 
             //UnityEngine.Debug.Log(corner.protrudes.Count);
-            corners.ForEach(c => c.border = c.point.x == 0 || c.point.x == SIZE || c.point.y == 0 || c.point.y == SIZE);
+            //corners.ForEach(c => c.border = c.point.x == 0 || c.point.x == SIZE || c.point.y == 0 || c.point.y == SIZE);
+            corners.ForEach(c => c.border = c.point.x <= 0 || c.point.x >= SIZE || c.point.y <= 0 || c.point.y >= SIZE);
             //DeleteEdgesWithVoidCorners();
 
         }

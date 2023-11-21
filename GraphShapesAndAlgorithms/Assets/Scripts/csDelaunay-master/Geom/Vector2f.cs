@@ -95,8 +95,13 @@ public struct Vector2f {
 	public static Vector2f operator * (Vector2f a, int i) {
 		return new Vector2f(a.x*i, a.y*i);
 	}
-	
-	public static Vector2f Min(Vector2f a, Vector2f b) {
+
+    public static explicit operator Vector2(Vector2f v)
+    {
+        return new Vector2(v.x, v.y);
+    }
+
+    public static Vector2f Min(Vector2f a, Vector2f b) {
 		return new Vector2f(Math.Min(a.x, b.x), Math.Min(a.y, b.y));
 	}
 	public static Vector2f Max(Vector2f a, Vector2f b) {

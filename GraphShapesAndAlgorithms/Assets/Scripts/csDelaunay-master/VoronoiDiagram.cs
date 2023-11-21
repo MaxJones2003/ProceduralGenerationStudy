@@ -6,7 +6,7 @@ using System.Linq;
 using Map;
 
 public class VoronoiDiagram : MonoBehaviour {
- 
+    public Terrain terrain; // Drag and drop your Unity Terrain here in the Inspector.
     // The number of polygons/sites we want
     public IslandShapeEnum islandShape = IslandShapeEnum.Radial;
     public int polygonNumber = 200;
@@ -19,31 +19,45 @@ public class VoronoiDiagram : MonoBehaviour {
     public string seed;
     Rectf bounds;
     Map.Map map;
+    Mesh mesh;
+    MeshFilter meshFilter;
+    MeshCollider meshCollider;
  
 
     public int stage;
 
-    public List<Map.Center> mapCenters;
-    public List<Map.Corner> mapCorners;
+    public List<Map.Center> centers;
+    public List<Map.Corner> corners;
     public List<Map.Edge> mapEdges;
+    private int terrainWidth = 100;
+    private int terrainLength = 100;
+    private float heightScale = 1000f;
 
 
     Vector3[] meshVertices;
     int[] meshTriangles;
-
+    int SIZE = 1000;
+    float[,] heights;
     public void GenerateVoronoi()
     {
+        mesh = new();
         int seedInt = Seed.Instance.InitializeRandom(seed);
-        bounds = new Rectf(0,0,1000,1000);
-        map = new Map.Map(polygonNumber, 1000, iterations, stage);
+        bounds = new Rectf(0,0,SIZE,SIZE);
+        map = new Map.Map(polygonNumber, SIZE, iterations, stage);
         map.NewIsland(islandShape, polygonNumber, seedInt);
-        mapCenters = map.centers;
-        mapCorners = map.corners;
+        centers = map.centers;
+        corners = map.corners;
         mapEdges = map.edges;
 
-        GenerateMesh(map.corners);
+        // any center that is ocean, set elevation to - 10 using lamda
+        //centers.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
+        //corners.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
+
+
+        TerrainGenerator terrainGenerator = new TerrainGenerator(centers, terrain, SIZE);
+        heights = terrainGenerator.GenerateTerrain();
     }
-    public List<Vector2f> CreateRandomPoints() {
+    public List<Vector2f> CreateRandompoints() {
         // Use Vector2f, instead of Vector2
         // Vector2f is pretty much the same than Vector2, but like you could run Voronoi in another thread
         List<Vector2f> points = new List<Vector2f>();
@@ -54,40 +68,98 @@ public class VoronoiDiagram : MonoBehaviour {
         return points;
     }
 
-    public void GenerateMesh(List<Corner> corners)
-    {
-        // Create a new mesh
-        Mesh mesh = new Mesh();
-        GetComponent<MeshFilter>().mesh = mesh;
+    void DrawPolygons(List<Center> centers, int zScale){
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> triangles=new List<int>();
+        List<Color32> colors = new List<Color32>();
 
-        // Vertices array to hold the corner positions
-        Vector3[] vertices = new Vector3[corners.Count];
+        foreach(Center c in centers){
+            if(c.ocean)
+                continue;
+            float zp = zScale*c.elevation;
+            vertices.Add(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y));
+            Color c0 = GetBiomeColor(c);
+            colors.Add(c0);
+            int centerIndex=vertices.Count-1;
+            var edges = c.borders;
+            int lastIndex = 0;
+            int firstIndex = 0;
 
-        // Assign positions and adjust height based on elevation
-        for (int i = 0; i < corners.Count; i++)
-        {
-            vertices[i] = new Vector3(corners[i].point.x, corners[i].elevation, corners[i].point.y);
+            for(int i =0;i<c.borders.Count;i++){
+                if(edges[i].v0 == null && edges[i].v1 == null)
+                    break;
+
+                //get voronoi edge
+                Corner corner0 = edges[i].v0;
+                Corner corner1 = edges[i].v1;
+
+                //get vertices height
+                float z0 = zScale*corner0.elevation * 20;
+                float z1 = zScale*corner1.elevation * 20;
+
+                //add color
+                if(edges[i].river>0){
+                    c0 = Color.cyan;
+                }else{
+                    c0 = GetBiomeColor(c);
+                }
+                colors.Add(c0);
+                colors.Add(c0);
+
+                //creat voronoi edge points
+                Vector3 v0 = new Vector3(((Vector2)corner0.point).x,z0,((Vector2)corner0.point).y);
+                Vector3 v1 = new Vector3(((Vector2)corner1.point).x,z1,((Vector2)corner1.point).y);
+
+                //add points to vertices
+                vertices.Add(v0);
+                var i2 = vertices.Count - 1;
+                vertices.Add(v1);
+                var i3 = vertices.Count - 1;
+
+                //add triangles calculating surface normals so i can always add triangles clockwise correctly
+                var surfaceNormal = Vector3.Cross (v0-(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y)), v1-(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y)));
+                if(surfaceNormal.y>0)
+                    AddTriangle(triangles, centerIndex, i2, i3);
+                else
+                    AddTriangle(triangles, centerIndex, i3, i2);
+
+                firstIndex = i2;
+                lastIndex = i3;
+            }
         }
 
-        // Triangles array to define the mesh topology
-        int[] triangles = new int[(corners.Count - 2) * 3];
+        
 
-        // Triangulate the corners
-        for (int i = 0, j = 0; i < triangles.Length; i += 3, j++)
+        //calculating uv's
+        Vector2[] uvs = new Vector2[vertices.Count];
+        for (int i = 0; i < uvs.Length; i++)
         {
-            triangles[i] = 0;
-            triangles[i + 1] = j + 1;
-            triangles[i + 2] = j + 2;
+            uvs[i] = new Vector2(vertices[i].x / SIZE, vertices[i].z / SIZE);
         }
 
-        // Assign the vertices and triangles to the mesh
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-
-        // Recalculate normals for lighting
+        mesh.Clear();
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.uv = uvs;
+        mesh.colors32 = colors.ToArray();
         mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        meshFilter.sharedMesh = mesh;
+        meshCollider.sharedMesh = mesh;
+
+        
     }
- 
+
+    void AddTriangle(List<int> triangles, int index1, int index2, int index3)
+    {
+        triangles.Add(index1);
+        triangles.Add(index2);
+        triangles.Add(index3);
+    }
+
+
+    
+
     // Here is a very simple way to display the result using a simple bresenham line algorithm
     // Just attach this script to a quad
     private void DisplayVoronoiDiagram() {
@@ -105,6 +177,7 @@ public class VoronoiDiagram : MonoBehaviour {
  
         GetComponent<Renderer>().sharedMaterial.mainTexture = tx;
     }
+
  
    
     // Bresenham line algorithm
@@ -195,6 +268,50 @@ public class VoronoiDiagram : MonoBehaviour {
         }
     }
 
+    public Color GetBiomeColor(Center p)
+    {
+        if (p.ocean)
+        {
+            return Color.blue; // You can replace this with your desired ocean color
+        }
+        else if (p.water)
+        {
+            if (p.elevation < 0.1) return Color.green; // Marsh color
+            if (p.elevation > 0.8) return Color.white; // Ice color
+            return Color.blue; // Lake color
+        }
+        else if (p.coast)
+        {
+            return Color.yellow; // Beach color
+        }
+        else if (p.elevation > 0.8)
+        {
+            if (p.moisture > 0.50) return Color.white; // Snow color
+            else if (p.moisture > 0.33) return Color.gray; // Tundra color
+            else if (p.moisture > 0.16) return new Color(0.5f, 0.5f, 0.5f); // Bare color
+            else return Color.black; // Scorched color
+        }
+        else if (p.elevation > 0.6)
+        {
+            if (p.moisture > 0.66) return new Color(0.2f, 0.5f, 0.2f); // Taiga color
+            else if (p.moisture > 0.33) return new Color(0.4f, 0.3f, 0.1f); // Shrubland color
+            else return Color.yellow; // Temperate Desert color
+        }
+        else if (p.elevation > 0.3)
+        {
+            if (p.moisture > 0.83) return new Color(0.1f, 0.4f, 0.1f); // Temperate Rain Forest color
+            else if (p.moisture > 0.50) return new Color(0.2f, 0.6f, 0.2f); // Temperate Deciduous Forest color
+            else if (p.moisture > 0.16) return new Color(0.6f, 0.8f, 0.3f); // Grassland color
+            else return Color.yellow; // Temperate Desert color
+        }
+        else
+        {
+            if (p.moisture > 0.66) return new Color(0.0f, 0.2f, 0.0f); // Tropical Rain Forest color
+            else if (p.moisture > 0.33) return new Color(0.1f, 0.3f, 0.1f); // Tropical Seasonal Forest color
+            else if (p.moisture > 0.16) return new Color(0.6f, 0.8f, 0.3f); // Grassland color
+            else return new Color(0.8f, 0.8f, 0.4f); // Subtropical Desert color
+        }
+    }
     public Color BlendColors(Color color1, Color color2, float blendFactor)
     {
         blendFactor = Mathf.Clamp01(blendFactor);
@@ -207,8 +324,8 @@ public class VoronoiDiagram : MonoBehaviour {
         return new Color(r, g, b, a);
     }
 
-
     #region Gizmos
+    float scale = 10f;
     void OnDrawGizmos()
     {
         if(map == null) return;
@@ -220,7 +337,7 @@ public class VoronoiDiagram : MonoBehaviour {
         {
             Gizmos.color = GetBiomeColor(corner);
 
-            Gizmos.DrawSphere(new Vector3(corner.point.x/100, corner.elevation, corner.point.y/100), 0.05f);
+            Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation*50, corner.point.y), 1f);
         } 
 
         // only draw the edges that are within the border
@@ -241,19 +358,19 @@ public class VoronoiDiagram : MonoBehaviour {
             // draw a white line between v0 and v1
             if(edge.v0 != null && edge.v1 != null)
             {
-                if(edge.river > 0) Gizmos.color = Color.blue;
-                else Gizmos.color = BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f);
-                Gizmos.DrawLine(new Vector3(edge.v0.point.x/100, edge.v0.elevation, edge.v0.point.y/100), new Vector3(edge.v1.point.x/100, edge.v1.elevation, edge.v1.point.y/100));
+                //if(edge.river > 0) Gizmos.color = Color.blue;
+                Gizmos.color = BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f);
+                Gizmos.DrawLine(new Vector3(edge.v0.point.x, edge.v0.elevation*50, edge.v0.point.y), new Vector3(edge.v1.point.x, edge.v1.elevation*50, edge.v1.point.y));
             }
         }
 
         // Draw a boundry with the Rectf bounds it has a float for the top bottom left and right
 
         Gizmos.color = Color.red;
-        Gizmos.DrawLine(new Vector3(bounds.left/100, 0, bounds.top/100), new Vector3(bounds.right/100, 0, bounds.top/100));
-        Gizmos.DrawLine(new Vector3(bounds.left/100, 0, bounds.bottom/100), new Vector3(bounds.right/100, 0, bounds.bottom/100));
-        Gizmos.DrawLine(new Vector3(bounds.left/100, 0, bounds.top/100), new Vector3(bounds.left/100, 0, bounds.bottom/100));
-        Gizmos.DrawLine(new Vector3(bounds.right/100, 0, bounds.top/100), new Vector3(bounds.right/100, 0, bounds.bottom/100));
+        Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.right, 0, bounds.top));
+        Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.bottom), new Vector3(bounds.right, 0, bounds.bottom));
+        Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.left, 0, bounds.bottom));
+        Gizmos.DrawLine(new Vector3(bounds.right, 0, bounds.top), new Vector3(bounds.right, 0, bounds.bottom));
     }
     public int displayPointAtIndex = 0;
     private Corner currentCorner;
@@ -276,4 +393,206 @@ public class VoronoiDiagram : MonoBehaviour {
         displayCenterEdges = currentCenter.borders;
     } */
     #endregion
-}      
+}     
+
+public class TerrainGenerator
+{
+    public TerrainGenerator(List<Center> centers, Terrain terrain, int SIZE)
+    {
+        this.centers = centers;
+        this.terrain = terrain;
+        terrainWidth = SIZE;
+        terrainLength = SIZE;
+    }
+    int terrainWidth = 100;
+    int terrainLength = 100;
+    float heightScale = 10f;
+
+    List<Center> centers;
+
+
+    Terrain terrain;
+    float[,] heights;
+    public float[,] GenerateTerrain()
+    {
+        if (terrain == null)
+        {
+            Debug.LogError("Terrain not assigned. Please assign a Unity Terrain in the Inspector.");
+            return null;
+        }
+
+        //terrain.terrainData = GenerateTerrainData();
+        return heights;
+    }
+
+    TerrainData GenerateTerrainData()
+    {
+        TerrainData terrainData = new TerrainData();
+        terrainData.heightmapResolution = terrainWidth + 1;
+        terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
+
+        heights = new float[terrainWidth + 1, terrainLength + 1];
+
+        foreach (var center in centers)
+        {
+            // if any corner is outstide the bounds, skip this center
+            if (center.corners.Any(c => c.point.x < 0 || c.point.x > terrainWidth || c.point.y < 0 || c.point.y > terrainLength))
+                continue;
+            // Get the min and max x and y values of the corners of the center, rounded to int
+            int xMin = Mathf.RoundToInt(center.corners.Min(c => c.point.x));
+            int xMax = Mathf.RoundToInt(center.corners.Max(c => c.point.x));
+            int yMin = Mathf.RoundToInt(center.corners.Min(c => c.point.y));
+            int yMax = Mathf.RoundToInt(center.corners.Max(c => c.point.y));
+
+            // iterate through the x and y values of the corners of the center
+            for (int x = xMin - 2; x <= xMax + 2; x++)
+            {
+                for (int y = yMin - 2; y <= yMax + 2; y++)
+                {
+                    // Check if the point is inside the polygon
+                    if (ElevationCalculator.PointInPolygon(x, y, center.corners))
+                    {
+                        // Get the elevation of the point
+                        //float elevation = ElevationCalculator.GetElevation(center, new Vector2f(x, y));
+                        float elevation = center.elevation;
+                        // Set the height of the point
+                        heights[x, y] = elevation;
+                    }
+                }
+            }
+        }
+
+        terrainData.SetHeights(0, 0, heights);
+
+        return terrainData;
+    }
+}
+
+public static class ElevationCalculator
+{
+    public static float GetElevation(Center center, Vector2f point)
+    {
+        float elevation = BarycentricInterpolation(point, center.corners);
+
+        return elevation;
+    }
+
+    private static float BarycentricInterpolation(Vector2f point, List<Corner> corners)
+    {
+        float sumWeights = 0;
+        float sumElevationWeighted = 0;
+
+        for (int i = 0; i < corners.Count; i++)
+        {
+            float weight = BarycentricWeight(point, corners, i);
+            sumWeights += weight;
+            sumElevationWeighted += weight * corners[i].elevation;
+        }
+
+        // Normalize the weights
+        if (sumWeights != 0)
+            return sumElevationWeighted / sumWeights;
+        else
+            return 0f; // Default value if all weights are zero
+    }
+
+    private static float BarycentricWeight(Vector2f point, List<Corner> corners, int index)
+    {
+        float product = 1;
+
+        for (int i = 0; i < corners.Count; i++)
+        {
+            if (i != index)
+            {
+                float numerator = (point.x - corners[i].point.x) * (corners[index].point.y - corners[i].point.y) -
+                                  (corners[index].point.x - corners[i].point.x) * (point.y - corners[i].point.y);
+
+                float denominator = (corners[index].point.x - corners[i].point.x) * (corners[index].point.y - corners[i].point.y);
+
+                if (denominator != 0)
+                {
+                    product *= numerator / denominator;
+                }
+            }
+        }
+
+        return product;
+    }
+
+    // Return True if the point is in the polygon.
+    public static bool PointInPolygon(float X, float Y, List<Corner> corners)
+    {
+        // Get a list of Vector2f points from the corners list, use a lamda
+        List<Vector2f> points = new List<Vector2f>();
+        corners.ForEach(c => points.Add(c.point));
+
+        // Get the angle between the point and the
+        // first and last vertices.
+        int max_point = points.Count - 1;
+        float total_angle = GetAngle(
+            points[max_point].x, points[max_point].y,
+            X, Y,
+            points[0].x, points[0].y);
+
+        // Add the angles from the point
+        // to each other pair of vertices.
+        for (int i = 0; i < max_point; i++)
+        {
+            total_angle += GetAngle(
+                points[i].x, points[i].y,
+                X, Y,
+                points[i + 1].x, points[i + 1].y);
+        }
+
+        // The total angle should be 2 * PI or -2 * PI if
+        // the point is in the polygon and close to zero
+        // if the point is outside the polygon.
+        return Mathf.Abs(total_angle) > 0.000001;
+    }
+
+    // Return the angle ABC.
+    // Return a value between PI and -PI.
+    // Note that the value is the opposite of what you might
+    // expect because Y coordinates increase downward.
+    public static float GetAngle(float Ax, float Ay,
+        float Bx, float By, float Cx, float Cy)
+    {
+        // Get the dot product.
+        float dot_product = DotProduct(Ax, Ay, Bx, By, Cx, Cy);
+
+        // Get the cross product length.
+        float cross_product = CrossProductLength(Ax, Ay, Bx, By, Cx, Cy);
+
+        // Calculate the angle.
+        return (float)Mathf.Atan2(cross_product, dot_product);
+    }
+
+    // Calculate the cross product length.
+    private static float CrossProductLength(float Ax, float Ay,
+        float Bx, float By, float Cx, float Cy)
+    {
+        // Get the vectors' coordinates.
+        float BAx = Ax - Bx;
+        float BAy = Ay - By;
+        float BCx = Cx - Bx;
+        float BCy = Cy - By;
+
+        // Calculate the cross product length.
+        return (BAx * BCy - BAy * BCx);
+    }
+
+    // Return the dot product AB . BC.
+    // Note that AB x BC = |AB| * |BC| * Cos(theta).
+    private static float DotProduct(float Ax, float Ay,
+        float Bx, float By, float Cx, float Cy)
+    {
+        // Get the vectors' coordinates.
+        float BAx = Ax - Bx;
+        float BAy = Ay - By;
+        float BCx = Cx - Bx;
+        float BCy = Cy - By;
+
+        // Calculate the dot product.
+        return (BAx * BCx + BAy * BCy);
+    }
+}

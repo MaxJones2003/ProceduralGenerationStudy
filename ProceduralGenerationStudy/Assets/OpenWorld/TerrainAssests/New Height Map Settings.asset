@@ -22,7 +22,7 @@ MonoBehaviour:
     lacunarity: 1.2
     seed: 0
     offset: {x: 0, y: 0}
-  heightMultiplier: 100
+  heightMultiplier: 4
   heightCurve:
     serializedVersion: 2
     m_Curve:
