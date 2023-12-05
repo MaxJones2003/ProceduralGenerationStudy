@@ -43,7 +43,8 @@ public class VoronoiDiagram : MonoBehaviour {
     Map.Grid grid;
     public void GenerateVoronoi()
     {
-        int seedInt = Seed.Instance.InitializeRandom(seed);
+        string newSeed = Seed.Instance.CreateRandomSeed(16);
+        int seedInt = Seed.Instance.InitializeRandom(newSeed);
         bounds = new Rectf(0,0,SIZE,SIZE);
         map = new Map.Map(polygonNumber, SIZE, iterations, stage);
         map.NewIsland(islandShape, polygonNumber, seedInt);
@@ -410,12 +411,12 @@ public class VoronoiDiagram : MonoBehaviour {
 
         
         
-        /* foreach(var corner in map.corners)
+        foreach(var corner in map.corners)
         {
             Gizmos.color = GetBiomeColor(corner);
 
             Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation*50, corner.point.y), 1f);
-        }  */
+        } 
 
         // only draw the edges that are within the border
         
