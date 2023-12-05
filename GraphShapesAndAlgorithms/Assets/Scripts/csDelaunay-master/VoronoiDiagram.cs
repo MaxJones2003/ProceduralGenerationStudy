@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using csDelaunay;
 using System.Linq;
 using Map;
+using static IDWInterpolator;
 
 public class VoronoiDiagram : MonoBehaviour {
     public Terrain terrain; // Drag and drop your Unity Terrain here in the Inspector.
@@ -36,11 +37,12 @@ public class VoronoiDiagram : MonoBehaviour {
 
     Vector3[] meshVertices;
     int[] meshTriangles;
-    int SIZE = 1000;
+    public int SIZE = 1000;
     float[,] heights;
+
+    Map.Grid grid;
     public void GenerateVoronoi()
     {
-        mesh = new();
         int seedInt = Seed.Instance.InitializeRandom(seed);
         bounds = new Rectf(0,0,SIZE,SIZE);
         map = new Map.Map(polygonNumber, SIZE, iterations, stage);
@@ -48,14 +50,21 @@ public class VoronoiDiagram : MonoBehaviour {
         centers = map.centers;
         corners = map.corners;
         mapEdges = map.edges;
+        grid = map.grid;
+        Mesh mesh = GenerateMesh();
+        GetComponent<MeshCollider>().sharedMesh = mesh;
 
         // any center that is ocean, set elevation to - 10 using lamda
         //centers.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
         //corners.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
 
 
-        TerrainGenerator terrainGenerator = new TerrainGenerator(centers, terrain, SIZE);
-        heights = terrainGenerator.GenerateTerrain();
+        TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh);
+        
+        terrain.terrainData = terrainGenerator.GenerateTerrain();
+        // create a plane basic object
+       /*  GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        plane.AddComponent<TextureDrawingTest>().GenerateMap(centers); */
     }
     public List<Vector2f> CreateRandompoints() {
         // Use Vector2f, instead of Vector2
@@ -66,6 +75,74 @@ public class VoronoiDiagram : MonoBehaviour {
         }
  
         return points;
+    }
+    Mesh GenerateMesh()
+    {
+        Mesh mesh = new Mesh();
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> triangles = new List<int>();
+        List<Color> colors = new List<Color>(); // List to store the color of each vertex
+
+        foreach(Map.Center c in centers){
+            if(c.ocean)
+                continue;
+            float zp = IDWInterpolator.InverseDistanceWeighting(c.point, c.corners, 2) * 50;
+            vertices.Add(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y));
+            int centerIndex=vertices.Count-1;
+            var edges = c.borders;
+            int lastIndex = 0;
+            int firstIndex = 0;
+
+            Color centerColor = GetBiomeColor(c); // Get the color for the center
+            colors.Add(centerColor); // Add the color to the colors list
+
+            for(int i =0;i<c.borders.Count;i++){
+                if(edges[i].v0 == null && edges[i].v1 == null)
+                    break;
+
+                //get voronoi edge
+                Corner corner0 = edges[i].v0;
+                Corner corner1 = edges[i].v1;
+
+                //get vertices height
+                float z0 = corner0.elevation * 50;
+                float z1 = corner1.elevation * 50;
+
+                //creat voronoi edge points
+                Vector3 v0 = new Vector3(((Vector2)corner0.point).x,z0,((Vector2)corner0.point).y);
+                Vector3 v1 = new Vector3(((Vector2)corner1.point).x,z1,((Vector2)corner1.point).y);
+
+                //add points to vertices
+                vertices.Add(v0);
+                var i2 = vertices.Count - 1;
+                vertices.Add(v1);
+                var i3 = vertices.Count - 1;
+
+                //add colors for the new vertices
+                colors.Add(GetBiomeColor(corner0));
+                colors.Add(GetBiomeColor(corner1));
+
+                //add triangles calculating surface normals so i can always add triangles clockwise correctly
+                var surfaceNormal = Vector3.Cross (v0-(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y)), v1-(new Vector3(((Vector2)c.point).x,zp,((Vector2)c.point).y)));
+                if(surfaceNormal.y>0)
+                    AddTriangle(triangles, centerIndex, i2, i3);
+                else
+                    AddTriangle(triangles, centerIndex, i3, i2);
+                    
+                firstIndex = i2;
+                lastIndex = i3;
+            }
+        }
+
+            mesh.vertices = vertices.ToArray();
+            mesh.triangles = triangles.ToArray();
+            Debug.Log(colors.Count);
+            //mesh.SetColors(colors, 0, colors.Count); // Set the colors of the mesh
+
+            mesh.RecalculateNormals();
+
+            GetComponent<MeshFilter>().mesh = mesh;
+            return mesh;
     }
 
     void DrawPolygons(List<Center> centers, int zScale){
@@ -333,18 +410,18 @@ public class VoronoiDiagram : MonoBehaviour {
 
         
         
-        foreach(var corner in map.corners)
+        /* foreach(var corner in map.corners)
         {
             Gizmos.color = GetBiomeColor(corner);
 
             Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation*50, corner.point.y), 1f);
-        } 
+        }  */
 
         // only draw the edges that are within the border
         
         foreach(Map.Edge edge in map.edges)
         {
-            /* // draw a red sphere at the d0 and d1 points
+            // draw a red sphere at the d0 and d1 points
             Gizmos.color = Color.red;
 
             Gizmos.DrawSphere(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), 0.01f);
@@ -352,7 +429,7 @@ public class VoronoiDiagram : MonoBehaviour {
             Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100), 0.01f); 
             // draw a black line between d0 and d1
             Gizmos.color = Color.black;
-            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100)); */
+            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100));
 
             // draw a blue sphere at the v0 and v1 points
             // draw a white line between v0 and v1
@@ -363,6 +440,16 @@ public class VoronoiDiagram : MonoBehaviour {
                 Gizmos.DrawLine(new Vector3(edge.v0.point.x, edge.v0.elevation*50, edge.v0.point.y), new Vector3(edge.v1.point.x, edge.v1.elevation*50, edge.v1.point.y));
             }
         }
+        /* foreach(var center in centers)
+        {
+            for(int i = 0; i < corners.Count; i++)
+            {
+                Gizmos.color = GetBiomeColor(corners[i]);
+                Gizmos.DrawSphere(new Vector3(corners[i].point.x, corners[i].elevation*50, corners[i].point.y), 1f);
+                // draw a line to the next corner in the list use modulos to prevent an error
+                Gizmos.DrawLine(new Vector3(corners[i].point.x, corners[i].elevation*50, corners[i].point.y), new Vector3(corners[(i + 1) % corners.Count].point.x, corners[(i + 1) % corners.Count].elevation*50, corners[(i + 1) % corners.Count].point.y));
+            }
+        } */
 
         // Draw a boundry with the Rectf bounds it has a float for the top bottom left and right
 
@@ -371,6 +458,7 @@ public class VoronoiDiagram : MonoBehaviour {
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.bottom), new Vector3(bounds.right, 0, bounds.bottom));
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.left, 0, bounds.bottom));
         Gizmos.DrawLine(new Vector3(bounds.right, 0, bounds.top), new Vector3(bounds.right, 0, bounds.bottom));
+
     }
     public int displayPointAtIndex = 0;
     private Corner currentCorner;
@@ -397,23 +485,30 @@ public class VoronoiDiagram : MonoBehaviour {
 
 public class TerrainGenerator
 {
-    public TerrainGenerator(List<Center> centers, Terrain terrain, int SIZE)
+    public TerrainGenerator(List<Center> centers, List<Corner> corners, Map.Grid grid, Terrain terrain, int SIZE, Mesh mesh)
     {
         this.centers = centers;
+        this.corners = corners;
+        this.grid = grid;
         this.terrain = terrain;
         terrainWidth = SIZE;
         terrainLength = SIZE;
+        this.mesh = mesh;
     }
     int terrainWidth = 100;
     int terrainLength = 100;
     float heightScale = 10f;
 
     List<Center> centers;
+    List<Corner> corners;
+    Map.Grid grid;
+
+    Mesh mesh;
 
 
     Terrain terrain;
     float[,] heights;
-    public float[,] GenerateTerrain()
+    public TerrainData GenerateTerrain()
     {
         if (terrain == null)
         {
@@ -421,8 +516,8 @@ public class TerrainGenerator
             return null;
         }
 
-        //terrain.terrainData = GenerateTerrainData();
-        return heights;
+        return GenerateTerrainData3();
+        
     }
 
     TerrainData GenerateTerrainData()
@@ -437,27 +532,32 @@ public class TerrainGenerator
         {
             // if any corner is outstide the bounds, skip this center
             if (center.corners.Any(c => c.point.x < 0 || c.point.x > terrainWidth || c.point.y < 0 || c.point.y > terrainLength))
+            {
                 continue;
+            }
             // Get the min and max x and y values of the corners of the center, rounded to int
             int xMin = Mathf.RoundToInt(center.corners.Min(c => c.point.x));
             int xMax = Mathf.RoundToInt(center.corners.Max(c => c.point.x));
             int yMin = Mathf.RoundToInt(center.corners.Min(c => c.point.y));
             int yMax = Mathf.RoundToInt(center.corners.Max(c => c.point.y));
 
+            List<Vector2f> points = center.corners.Select(c => c.point).ToList();
             // iterate through the x and y values of the corners of the center
-            for (int x = xMin - 2; x <= xMax + 2; x++)
+            IDWInterpolator iDWInterpolator = new IDWInterpolator(corners, 2, terrainWidth);
+            for (int x = xMin; x <= xMax + 2; x++)
             {
-                for (int y = yMin - 2; y <= yMax + 2; y++)
+                for (int y = yMin; y <= yMax + 2; y++)
                 {
                     // Check if the point is inside the polygon
-                    if (ElevationCalculator.PointInPolygon(x, y, center.corners))
+                    if (!PolygonChecker.IsPointInsidePolygon(new Vector2f(x, y), points) && (x >= 0 && x < terrainWidth && y >= 0 && y < terrainLength))
                     {
                         // Get the elevation of the point
                         //float elevation = ElevationCalculator.GetElevation(center, new Vector2f(x, y));
-                        float elevation = center.elevation;
+                        float elevation = iDWInterpolator.Interpolate(new Vector2f(x, y)); 
                         // Set the height of the point
-                        heights[x, y] = elevation;
+                        heights[x, y] = elevation * 50;
                     }
+                    
                 }
             }
         }
@@ -465,6 +565,150 @@ public class TerrainGenerator
         terrainData.SetHeights(0, 0, heights);
 
         return terrainData;
+    }
+    TerrainData GenerateTerrainData2()
+    {
+        TerrainData terrainData = new TerrainData();
+        terrainData.heightmapResolution = terrainWidth + 1;
+        terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
+
+        heights = new float[terrainWidth + 1, terrainLength + 1];
+        //int numOfNull = 0;
+        // find the maximum height value of all corners
+        float maxHeight = corners.Max(corner => corner.elevation);
+        IDWInterpolator iDWInterpolator = new IDWInterpolator(corners, 2, terrainWidth);
+        for(int x = 0; x < terrainWidth; x++)
+        {
+            for(int y = 0; y < terrainLength; y++)
+            {
+                /* List<Center> gridCenters = grid.FindCentersInGrid(x, y);
+                if(gridCenters == null) continue;
+                Center center = gridCenters.Find(c => IsPointInPolygon(c.corners, new Vector2f(x, y)));
+                
+                float elevation = center == null ? 0 : IDWInterpolator.InverseDistanceWeighting(new Vector2f(x, y), center.corners, 2); */
+                float elevation = iDWInterpolator.InverseDistanceWeighting(new Vector2f(x, y));
+                
+                // normalize the elevation between 0 and 1 using the maxHeight
+                elevation = Mathf.InverseLerp(0, maxHeight, elevation);
+                //numOfNull += center == null ? 1 : 0;
+                heights[x, y] = elevation;
+            }
+        }
+        //Debug.Log(numOfNull);
+        /* for(int x = 0; x < terrainWidth; x++)
+        {
+            for(int y = 0; y < terrainLength; y++)
+            {
+                if(heights[x, y] == 0)
+                {
+                    heights[x, y] = GetAverageElevation(x, y);
+                }
+            }
+        } */
+        /* int howmany = 0;
+        foreach(var h in heights)  if(h == 0) howmany++;
+        Debug.Log(howmany); */
+
+        terrainData.SetHeights(0, 0, heights);
+
+        return terrainData;
+    }
+
+    TerrainData GenerateTerrainData3()
+{
+    TerrainData terrainData = new TerrainData();
+    terrainData.heightmapResolution = terrainWidth + 1;
+    terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
+
+    heights = new float[terrainWidth + 1, terrainLength + 1];
+    float minHeight = float.MaxValue;
+    float maxHeight = float.MinValue;
+
+    // Raycast up from each heightmap point looking for the mesh height at that position
+    RaycastHit hit;
+    for (int x = 0; x < terrainWidth; x++)
+    {
+        for (int y = 0; y < terrainLength; y++)
+        {
+            // Raycast up from the terrain to the mesh
+            Vector3 rayOrigin = new Vector3(x, 1000, y);
+            if (Physics.Raycast(rayOrigin, Vector3.down, out hit, Mathf.Infinity))
+            {
+                // Get the height of the mesh at the raycast hit point
+                float height = hit.point.y;
+
+                // Set the height of the terrain heightmap at this location
+                heights[x, y] = height;
+
+                // Update the minimum and maximum heights
+                minHeight = height < minHeight ? height : minHeight;
+                maxHeight = height > maxHeight ? height : maxHeight;
+            }
+        }
+    }
+
+    // Normalize the heights
+    for (int x = 0; x < terrainWidth; x++)
+    {
+        for (int y = 0; y < terrainLength; y++)
+        {
+            heights[x, y] = Mathf.InverseLerp(minHeight, maxHeight, heights[x, y]) * 10;
+        }
+    }
+
+    terrainData.SetHeights(0, 0, heights);
+
+    return terrainData;
+}
+    
+    void GenerateTexture()
+    {
+        int textureWidth = terrainWidth;
+        int textureHeight = terrainLength;
+        Texture2D texture = new Texture2D(textureWidth, textureHeight);
+
+        for (int y = 0; y < textureHeight; y++)
+        {
+            for (int x = 0; x < textureWidth; x++)
+            {
+                // Convert the height map value to grayscale color
+                float heightValue = heights[x, y];
+                Color color = new Color(heightValue, heightValue, heightValue);
+
+                texture.SetPixel(x, y, color);
+            }
+        }
+
+        texture.Apply(); // Apply the changes to the texture
+
+        // Assuming you have a reference to a material on a GameObject, you can assign the texture to it
+        // make a new plane and apply the texture
+        GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        plane.GetComponent<Renderer>().material = new Material(Shader.Find("Standard"));
+        plane.GetComponent<Renderer>().sharedMaterial.mainTexture = texture;
+    }
+    float GetAverageElevation(int x, int y)
+    {
+        float up, down, left, right, upLeft, upRight, downLeft, downRight;
+        up = down = left = right = upLeft = upRight = downLeft = downRight = 0;
+
+        up = (x >= 0 && x < terrainWidth && y + 1 >= 0 && y + 1 < terrainLength) ? heights[x, y + 1] : 0;
+        down = (x >= 0 && x < terrainWidth && y - 1 >= 0 && y - 1 < terrainLength) ? heights[x, y - 1] : 0;
+        left = (x - 1 >= 0 && x - 1 < terrainWidth && y >= 0 && y < terrainLength) ? heights[x - 1, y] : 0;
+        right = (x + 1 >= 0 && x + 1 < terrainWidth && y >= 0 && y < terrainLength) ? heights[x + 1, y] : 0;
+        upLeft = (x - 1 >= 0 && x - 1 < terrainWidth && y + 1 >= 0 && y + 1 < terrainLength) ? heights[x - 1, y + 1] : 0;
+        upRight = (x + 1 >= 0 && x + 1 < terrainWidth && y + 1 >= 0 && y + 1 < terrainLength) ? heights[x + 1, y + 1] : 0;
+        downLeft = (x - 1 >= 0 && x - 1 < terrainWidth && y - 1 >= 0 && y - 1 < terrainLength) ? heights[x - 1, y - 1] : 0;
+        downRight = (x + 1 >= 0 && x + 1 < terrainWidth && y - 1 >= 0 && y - 1 < terrainLength) ? heights[x + 1, y - 1] : 0;
+
+        return (up + down + left + right + upLeft + upRight + downLeft + downRight) / 8;
+    }
+
+    public static bool IsPointInPolygon(List<Corner> polygon, Vector2f testPoint)
+    {
+        List<Vector2f> points = new List<Vector2f>();
+        polygon.ForEach(c => points.Add(c.point));
+        return InsidePolygonHelper.checkInside(points, points.Count, testPoint) == 1;
     }
 }
 

@@ -1,6 +1,7 @@
 using csDelaunay;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Map
@@ -33,6 +34,57 @@ namespace Map
         [HideInInspector] public List<Center> neighbors;
         [HideInInspector] public List<Edge> borders;
         [HideInInspector] public List<Corner> corners;
+
+        public void OrderCornersClockwise()
+        {
+            if (corners.Count == 0)
+                return;
+
+            // set the reference point to the left most corner
+            Vector2f referencePoint = corners.OrderBy(c => c.point.y).ThenBy(c => c.point.x).First().point;
+
+            corners.Sort((a, b) =>
+            {
+                float angleA = Mathf.Atan2(a.point.y - referencePoint.y, a.point.x - referencePoint.x);
+                float angleB = Mathf.Atan2(b.point.y - referencePoint.y, b.point.x - referencePoint.x);
+
+                // Adjust the angles to be between 0 and 2π
+                angleA = (angleA + 2 * Mathf.PI) % (2 * Mathf.PI);
+                angleB = (angleB + 2 * Mathf.PI) % (2 * Mathf.PI);
+
+                // Reverse the comparison to sort in clockwise order
+                return angleB.CompareTo(angleA);
+            });
+        }
+        /* public void OrderCornersClockwise()
+        {
+            Vector2f centroid = CalculateCentroid();
+
+            corners.Sort((a, b) =>
+            {
+                float angleA = Mathf.Atan2(a.point.y - centroid.y, a.point.x - centroid.x);
+                float angleB = Mathf.Atan2(b.point.y - centroid.y, b.point.x - centroid.x);
+
+                // Adjust the angles to be between 0 and 2π
+                angleA = (angleA + 2 * Mathf.PI) % (2 * Mathf.PI);
+                angleB = (angleB + 2 * Mathf.PI) % (2 * Mathf.PI);
+
+                // Reverse the comparison to sort in clockwise order
+                return angleB.CompareTo(angleA);
+            });
+        } */
+
+        private Vector2f CalculateCentroid()
+        {
+            Vector2f centroid = Vector2f.zero;
+
+            foreach (Corner corner in corners)
+            {
+                centroid += corner.point;
+            }
+
+            return centroid / corners.Count;
+        }
 
         #region Overrides
         // Override comparison for a Vector2f and a Center, where the Vector2f is the point of the center

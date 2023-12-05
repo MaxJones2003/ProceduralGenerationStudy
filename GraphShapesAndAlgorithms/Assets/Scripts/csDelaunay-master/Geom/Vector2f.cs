@@ -47,6 +47,11 @@ public struct Vector2f {
 		Vector2 lerped = Vector2.Lerp(new Vector2(a.x, a.y), new Vector2(b.x, b.y), weight);
 		return new Vector2f(lerped.x, lerped.y);
 	}
+
+	public static float Distance(Vector2f a, Vector2f b)
+	{
+		return (float)Math.Sqrt(Math.Pow(a.x - b.x, 2) + Math.Pow(a.y - b.y, 2));
+	}
 	
 	public override bool Equals(object other) {
 		if (!(other is Vector2f)) {
@@ -93,6 +98,18 @@ public struct Vector2f {
 	}
 
 	public static Vector2f operator * (Vector2f a, int i) {
+		return new Vector2f(a.x*i, a.y*i);
+	}
+
+	public static Vector2f operator * (Vector2f a, float i) {
+		return new Vector2f(a.x*i, a.y*i);
+	}
+
+	public static Vector2f operator / (Vector2f a, int i) {
+		return new Vector2f(a.x/i, a.y/i);
+	}
+
+	public static Vector2f operator / (Vector2f a, float i) {
 		return new Vector2f(a.x*i, a.y*i);
 	}
 
