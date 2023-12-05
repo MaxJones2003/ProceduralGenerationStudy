@@ -41,9 +41,12 @@ public class VoronoiDiagram : MonoBehaviour {
     float[,] heights;
 
     Map.Grid grid;
+    public bool generateRandom;
+    public int step;
+    public TextureDrawingTest textureDrawer;
     public void GenerateVoronoi()
     {
-        string newSeed = Seed.Instance.CreateRandomSeed(16);
+        string newSeed = generateRandom ? Seed.Instance.CreateRandomSeed(16) : seed;
         int seedInt = Seed.Instance.InitializeRandom(newSeed);
         bounds = new Rectf(0,0,SIZE,SIZE);
         map = new Map.Map(polygonNumber, SIZE, iterations, stage);
@@ -63,9 +66,8 @@ public class VoronoiDiagram : MonoBehaviour {
         TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh);
         
         terrain.terrainData = terrainGenerator.GenerateTerrain();
-        // create a plane basic object
-       /*  GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        plane.AddComponent<TextureDrawingTest>().GenerateMap(centers); */
+        
+        textureDrawer.GenerateMap(centers, corners, mapEdges, step, SIZE);
     }
     public List<Vector2f> CreateRandompoints() {
         // Use Vector2f, instead of Vector2
@@ -137,7 +139,6 @@ public class VoronoiDiagram : MonoBehaviour {
 
             mesh.vertices = vertices.ToArray();
             mesh.triangles = triangles.ToArray();
-            Debug.Log(colors.Count);
             //mesh.SetColors(colors, 0, colors.Count); // Set the colors of the mesh
 
             mesh.RecalculateNormals();
@@ -423,14 +424,14 @@ public class VoronoiDiagram : MonoBehaviour {
         foreach(Map.Edge edge in map.edges)
         {
             // draw a red sphere at the d0 and d1 points
-            Gizmos.color = Color.red;
+            /*Gizmos.color = Color.red;
 
             Gizmos.DrawSphere(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), 0.01f);
 
             Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100), 0.01f); 
             // draw a black line between d0 and d1
             Gizmos.color = Color.black;
-            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100));
+            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100));*/
 
             // draw a blue sphere at the v0 and v1 points
             // draw a white line between v0 and v1
