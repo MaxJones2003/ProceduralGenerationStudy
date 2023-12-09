@@ -45,64 +45,22 @@ public class IslandShape
         }
 
         return Inside;
-    }
-    /* static public function makeRadial(seed:int):Function {
-    var islandRandom:PM_PRNG = new PM_PRNG();
-    islandRandom.seed = seed;
-    var bumps:int = islandRandom.nextIntRange(1, 6);
-    var startAngle:Number = islandRandom.nextDoubleRange(0, 2*Math.PI);
-    var dipAngle:Number = islandRandom.nextDoubleRange(0, 2*Math.PI);
-    var dipWidth:Number = islandRandom.nextDoubleRange(0.2, 0.7);
-    
-    function inside(q:Point):Boolean {
-      var angle:Number = Math.atan2(q.y, q.x);
-      var length:Number = 0.5 * (Math.max(Math.abs(q.x), Math.abs(q.y)) + q.length);
-
-      var r1:Number = 0.5 + 0.40*Math.sin(startAngle + bumps*angle + Math.cos((bumps+3)*angle));
-      var r2:Number = 0.7 - 0.20*Math.sin(startAngle + bumps*angle - Math.sin((bumps+2)*angle));
-      if (Math.abs(angle - dipAngle) < dipWidth
-          || Math.abs(angle - dipAngle + 2*Math.PI) < dipWidth
-          || Math.abs(angle - dipAngle - 2*Math.PI) < dipWidth) {
-        r1 = r2 = 0.2;
-      }
-      return  (length < r1 || (length > r1*ISLAND_FACTOR && length < r2));
-    }
-
-    return inside;
-  } */
-    
+    }    
 
     // The Perlin-based island combines perlin noise with the radius
     public static Func<Vector2f, bool> MakePerlin(int seed)
     {
-        Texture2D perlinTexture = new Texture2D(512, 512);
-        perlinTexture.SetPixels(GeneratePerlinNoise(seed));
-        perlinTexture.Apply();
+        System.Random rand = new System.Random(seed);
+        float offsetX = (float)rand.NextDouble();
+        float offsetY = (float)rand.NextDouble();
 
-        bool Inside(Vector2f q)
+        return q =>
         {
-            float c = perlinTexture.GetPixel((int)((q.x + 1) * 128), (int)((q.y + 1) * 128)).r;
-            return c > (0.3f + 0.3f * q.magnitude * q.magnitude);
-        }
-
-        return Inside;
-    }
-
-    private static Color[] GeneratePerlinNoise(int seed)
-    {
-        UnityEngine.Random.InitState(seed);
-        Color[] pixels = new Color[256 * 256];
-
-        for (int y = 0; y < 256; y++)
-        {
-            for (int x = 0; x < 256; x++)
-            {
-                float c = UnityEngine.Random.Range(0f, 1f);
-                pixels[y * 256 + x] = new Color(c, c, c);
-            }
-        }
-
-        return pixels;
+            float x = (q.x + 1) * 0.5f; // Transform x from [-1, 1] to [0, 1]
+            float y = (q.y + 1) * 0.5f; // Transform y from [-1, 1] to [0, 1]
+            float perlinValue = Mathf.PerlinNoise(x * 64 + offsetX, y * 64 + offsetY);
+            return perlinValue > (0.3f + 0.3f * q.magnitude * q.magnitude);
+        };
     }
 
     // The square shape fills the entire space with land

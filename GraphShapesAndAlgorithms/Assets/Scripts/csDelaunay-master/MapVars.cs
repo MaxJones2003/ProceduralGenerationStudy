@@ -1130,11 +1130,57 @@ namespace Map
                 else return "SUBTROPICAL_DESERT";
             }
         }
+        public static EBiomeType GetBiomeEnum(Center p)
+        {
+            if (p.ocean)
+            {
+                return EBiomeType.OCEAN;
+            }
+            else if (p.water)
+            {
+                if (p.elevation < 0.1) return EBiomeType.MARSH;
+                if (p.elevation > 0.8) return EBiomeType.ICE;
+                return EBiomeType.LAKE;
+            }
+            else if (p.coast)
+            {
+                return EBiomeType.BEACH;
+            }
+            else if (p.elevation > 0.8)
+            {
+                if (p.moisture > 0.50) return EBiomeType.SNOW;
+                else if (p.moisture > 0.33) return EBiomeType.TUNDRA;
+                else if (p.moisture > 0.16) return EBiomeType.BARE;
+                else return EBiomeType.SCORCHED;
+            }
+            else if (p.elevation > 0.6)
+            {
+                if (p.moisture > 0.66) return EBiomeType.TAIGA;
+                else if (p.moisture > 0.33) return EBiomeType.SHRUBLAND;
+                else return EBiomeType.TEMPERATE_DESERT;
+            }
+            else if (p.elevation > 0.3)
+            {
+                if (p.moisture > 0.83) return EBiomeType.TEMPERATE_RAIN_FOREST;
+                else if (p.moisture > 0.50) return EBiomeType.TEMPERATE_DECIDUOUS_FOREST;
+                else if (p.moisture > 0.16) return EBiomeType.GRASSLAND;
+                else return EBiomeType.TEMPERATE_DESERT;
+            }
+            else
+            {
+                if (p.moisture > 0.66) return EBiomeType.TROPICAL_RAIN_FOREST;
+                else if (p.moisture > 0.33) return EBiomeType.TROPICAL_SEASONAL_FOREST;
+                else if (p.moisture > 0.16) return EBiomeType.GRASSLAND;
+                else return EBiomeType.SUBTROPICAL_DESERT;
+            }
+        }
+
         public void AssignBiomes()
         {
             foreach (var p in centers) 
             {
                 p.biome = GetBiome(p);
+                p.biomeEnum = GetBiomeEnum(p);
             }
         }
         // Look up a Voronoi Edge object given two adjacent Voronoi
@@ -1169,6 +1215,27 @@ namespace Map
 
             return islandShape(new Vector2f(x, y));
         }
+    }
+    public enum EBiomeType
+    {
+        OCEAN,
+        MARSH,
+        ICE,
+        LAKE,
+        BEACH,
+        SNOW,
+        TUNDRA,
+        BARE,
+        SCORCHED,
+        TAIGA,
+        SHRUBLAND,
+        TEMPERATE_DESERT,
+        TEMPERATE_RAIN_FOREST,
+        TEMPERATE_DECIDUOUS_FOREST,
+        GRASSLAND,
+        TROPICAL_RAIN_FOREST,
+        TROPICAL_SEASONAL_FOREST,
+        SUBTROPICAL_DESERT
     }
 
     public struct Region

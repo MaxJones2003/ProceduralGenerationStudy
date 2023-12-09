@@ -67,6 +67,8 @@ public class VoronoiDiagram : MonoBehaviour {
         
         terrain.terrainData = terrainGenerator.GenerateTerrain();
         
+        textureDrawer.vD = this;
+        textureDrawer.map = map;
         textureDrawer.GenerateMap(centers, corners, mapEdges, step, SIZE);
     }
     public List<Vector2f> CreateRandompoints() {
@@ -311,7 +313,7 @@ public class VoronoiDiagram : MonoBehaviour {
         else if (p.water)
         {
             if (p.elevation < 0.1) return Color.green; // Marsh color
-            if (p.elevation > 0.8) return Color.white; // Ice color
+            if (p.elevation > 0.8) return Color.cyan; // Ice color
             return Color.blue; // Lake color
         }
         else if (p.coast)
@@ -344,6 +346,32 @@ public class VoronoiDiagram : MonoBehaviour {
             else if (p.moisture > 0.33) return new Color(0.1f, 0.3f, 0.1f); // Tropical Seasonal Forest color
             else if (p.moisture > 0.16) return new Color(0.6f, 0.8f, 0.3f); // Grassland color
             else return new Color(0.8f, 0.8f, 0.4f); // Subtropical Desert color
+        }
+    }
+    public Color GetBiomeColor(EBiomeType p)
+    {
+        if (p == EBiomeType.OCEAN) return Color.blue;
+        else if (p == EBiomeType.MARSH) return Color.green;
+        else if (p == EBiomeType.SNOW) return Color.white;
+        else if (p == EBiomeType.ICE) return Color.cyan;
+        else if (p == EBiomeType.LAKE) return Color.blue;
+        else if (p == EBiomeType.BEACH) return Color.yellow;
+        else if (p == EBiomeType.SCORCHED) return Color.black;
+        else if (p == EBiomeType.BARE) return new Color(0.5f, 0.5f, 0.5f);
+        else if (p == EBiomeType.TUNDRA) return Color.gray;
+        else if (p == EBiomeType.SHRUBLAND) return new Color(0.4f, 0.3f, 0.1f);
+        else if (p == EBiomeType.TAIGA) return new Color(0.2f, 0.5f, 0.2f);
+        else if (p == EBiomeType.GRASSLAND) return new Color(0.6f, 0.8f, 0.3f);
+        else if (p == EBiomeType.TEMPERATE_DESERT) return Color.yellow;
+        else if (p == EBiomeType.TEMPERATE_RAIN_FOREST) return new Color(0.1f, 0.4f, 0.1f);
+        else if (p == EBiomeType.TEMPERATE_DECIDUOUS_FOREST) return new Color(0.2f, 0.6f, 0.2f);
+        else if (p == EBiomeType.SUBTROPICAL_DESERT) return new Color(0.8f, 0.8f, 0.4f);
+        else if (p == EBiomeType.TROPICAL_RAIN_FOREST) return new Color(0.0f, 0.2f, 0.0f);
+        else if (p == EBiomeType.TROPICAL_SEASONAL_FOREST) return new Color(0.1f, 0.3f, 0.1f);
+        else
+        {
+            Debug.LogError("No color found for biome type: " + p);
+            return Color.magenta;
         }
     }
 

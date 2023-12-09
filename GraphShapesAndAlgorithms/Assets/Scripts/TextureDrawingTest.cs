@@ -5,24 +5,119 @@ using static UnityEngine.UI.GridLayoutGroup;
 
 public class TextureDrawingTest : MonoBehaviour
 {
+    public VoronoiDiagram vD;
     public int mapSize;
 
     public float minElevation = 0f;
     public float maxElevation = 1f;
     Texture2D texture;
+    public Map.Map map;
+    public bool testRadial;
+    public bool drawRivers;
+    public bool drawBiomes;
+    public bool drawMoisture;
+    public Color baseHeightColor;
+
+    public Color highMoistureColor;
+    public Color lowMoistureColor;
     public void GenerateMap(List<Center> centers, List<Map.Corner> corners, List<Map.Edge> edges, int steps, int mapSize)
     {
         this.mapSize = mapSize;
         // Create a blank texture
         texture = new Texture2D(mapSize, mapSize);
-        GetComponent<Renderer>().sharedMaterial.mainTexture = texture;
+        Material material = GetComponent<Renderer>().sharedMaterial;
+        Color color = steps < 4 ? Color.grey : Color.blue;
+        // Set the texture to blue
+        if(!testRadial)
+        {
+            for(int i=0; i<texture.width; i++)
+                for(int j=0; j<texture.height; j++)
+                    texture.SetPixel(i, j, color);
+                
+            if(steps == 1)
+            {
+                DrawCenters(centers);
+            }
+            else if(steps == 2)
+            {
+                DrawCenters(centers);
+                DrawTriangleLines(edges);
+            }
+            else if(steps == 3)
+            {
+                DrawCenters(centers);
+                DrawTriangleLines(edges);
+                DrawCorners(corners);
+                DrawVoronoiLines(edges);
+            }
+            else if(steps == 4 && drawBiomes)
+            {
+                DrawVoronoiLines(edges);
+                foreach(var c in centers)
+                {
+                    int x = Mathf.RoundToInt(c.point.x);
+                    int y = Mathf.RoundToInt(c.point.y);
+                    if (x < 0 || y < 0 || x > mapSize || y > mapSize) continue;
+                    //texture.SetPixel(x, y, Color.white);
+                    FloodFill(x, y, vD.GetBiomeColor(c.biomeEnum));
+                }
+            }
+            else if(steps == 4 && !drawBiomes)
+            {
+                DrawVoronoiLines(edges);
+                foreach(var c in centers)
+                {
+                    int x = Mathf.RoundToInt(c.point.x);
+                    int y = Mathf.RoundToInt(c.point.y);
+                    if (x < 0 || y < 0 || x > mapSize || y > mapSize) continue;
+                    //texture.SetPixel(x, y, Color.white);
+                    Color newColor = new Color();
+                    newColor = !c.ocean ? (!drawMoisture ? Color.Lerp(baseHeightColor, Color.white, c.elevation) : Color.Lerp(lowMoistureColor, highMoistureColor, c.moisture)) : Color.blue;/* Color.green;
+                    if(c.ocean) newColor = Color.blue; */
+                    
+                    FloodFill(x, y, newColor);
+                }
+            }
+        }
+        else
+        {
+            // This draws the noise map
+            for(int i=0; i<texture.width; i++)
+                for(int j=0; j<texture.height; j++)
+                {
+                    if(map.Inside(new Vector2f(i,j)))
+                    {
+                        texture.SetPixel(i, j, Color.black);
+                    }
+                }
 
-        if (steps > 0) DrawCenters(centers);
-        if (steps > 1) DrawTriangleLines(edges);
-        if (steps > 2) DrawCorners(corners);
-        if (steps > 3) DrawVoronoiLines(edges);
+        }
+
+
 
         // Apply changes to the texture
+        texture.Apply();
+        material.mainTexture = texture;
+    }
+
+    // FloodFill function, takes a position (within the texture size) and checks sorrounding pixels, if they are the same color, it changes them to the new color, 
+    // it continues until it finds a different color, if the color is different, don't change it, it shouldn't stop until the entire area is filled.
+    public void FloodFill(int x, int y, Color newColor)
+    {
+        Color oldColor = texture.GetPixel(x, y);
+        if (oldColor == newColor) return;
+        Queue<Vector2Int> q = new Queue<Vector2Int>();
+        q.Enqueue(new Vector2Int(x, y));
+        while (q.Count > 0)
+        {
+            Vector2Int p = q.Dequeue();
+            if (texture.GetPixel(p.x, p.y) != oldColor) continue;
+            texture.SetPixel(p.x, p.y, newColor);
+            q.Enqueue(new Vector2Int(p.x + 1, p.y));
+            q.Enqueue(new Vector2Int(p.x - 1, p.y));
+            q.Enqueue(new Vector2Int(p.x, p.y + 1));
+            q.Enqueue(new Vector2Int(p.x, p.y - 1));
+        }
         texture.Apply();
     }
 
@@ -51,11 +146,11 @@ public class TextureDrawingTest : MonoBehaviour
         // Draw points on the texture
         foreach (var center in centers)
         {
-            int x = Mathf.RoundToInt(center.point.x * mapSize);
-            int y = Mathf.RoundToInt(center.point.y * mapSize);
+            int x = Mathf.RoundToInt(center.point.x);
+            int y = Mathf.RoundToInt(center.point.y);
             if (x < 0 || y < 0 || x > mapSize || y > mapSize) continue;
             //texture.SetPixel(x, y, Color.white);
-            DrawLargePixel(x, y, Color.red, 3);
+            DrawLargePixel(x, y, Color.red, 2);
         }
     }
     public void DrawCorners(List<Map.Corner> corners)
@@ -63,11 +158,11 @@ public class TextureDrawingTest : MonoBehaviour
         // Draw points on the texture
         foreach (var corner in corners)
         {
-            int x = Mathf.RoundToInt(corner.point.x * mapSize);
-            int y = Mathf.RoundToInt(corner.point.y * mapSize);
+            int x = Mathf.RoundToInt(corner.point.x);
+            int y = Mathf.RoundToInt(corner.point.y);
             if (x < 0 || y < 0 || x > mapSize || y > mapSize) continue;
             //texture.SetPixel(x, y, Color.white);
-            DrawLargePixel(x, y, Color.blue, 1);
+            DrawLargePixel(x, y, Color.blue, 2);
         }
     }
 
@@ -97,7 +192,8 @@ public class TextureDrawingTest : MonoBehaviour
             var vP1 = v1.point;
             if (vP1.x < 0 || vP1.y < 0 || vP1.x > mapSize || vP1.y > mapSize) continue;
 
-            DrawLine(vP0, vP1, Color.green);
+            Color color = (edge.river > 0 && drawRivers) ? Color.cyan : Color.black;//new Color(0.01f, 0.01f, 0.01f);
+            DrawLine(vP0, vP1, color);
         }
     }
 
@@ -132,8 +228,6 @@ public class TextureDrawingTest : MonoBehaviour
                 y0 += sy;
             }
         }
-        DrawLargePixel((int)p0.x, (int)p0.y, Color.blue, 1);
-        DrawLargePixel((int)p1.x, (int)p1.y, Color.blue, 1);
     }
     private void DrawLargePixel(int x, int y, Color color, int size)
     {
