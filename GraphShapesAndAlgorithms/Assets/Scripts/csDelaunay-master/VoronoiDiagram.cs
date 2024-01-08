@@ -15,11 +15,11 @@ public class VoronoiDiagram : MonoBehaviour {
  
     // This is where we will store the resulting data
     private Dictionary<Vector2f, Site> sites;
-    private Dictionary<Vector2f, Site> boundedSites;
+    //private Dictionary<Vector2f, Site> boundedSites;
     private List<csDelaunay.Edge> edges;
     public string seed;
     Rectf bounds;
-    Map.Map map;
+    public Map.Map map;
     Mesh mesh;
     MeshFilter meshFilter;
     MeshCollider meshCollider;
@@ -30,9 +30,9 @@ public class VoronoiDiagram : MonoBehaviour {
     public List<Map.Center> centers;
     public List<Map.Corner> corners;
     public List<Map.Edge> mapEdges;
-    private int terrainWidth = 100;
+    /* private int terrainWidth = 100;
     private int terrainLength = 100;
-    private float heightScale = 1000f;
+    private float heightScale = 1000f; */
 
 
     Vector3[] meshVertices;
@@ -44,6 +44,10 @@ public class VoronoiDiagram : MonoBehaviour {
     public bool generateRandom;
     public int step;
     public TextureDrawingTest textureDrawer;
+    void Start()
+    {
+        GenerateVoronoi();
+    }
     public void GenerateVoronoi()
     {
         string newSeed = generateRandom ? Seed.Instance.CreateRandomSeed(16) : seed;
@@ -62,15 +66,20 @@ public class VoronoiDiagram : MonoBehaviour {
         //centers.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
         //corners.ForEach(c => c.elevation = c.ocean ? -10 : c.elevation);
 
+        DebugReorderPoints();
 
         TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh);
         
         terrain.terrainData = terrainGenerator.GenerateTerrain();
-        
+
+        heights = new float[SIZE, SIZE];
+        heights = terrain.terrainData.GetHeights(0, 0, SIZE, SIZE);
+
         textureDrawer.vD = this;
         textureDrawer.map = map;
         textureDrawer.GenerateMap(centers, corners, mapEdges, step, SIZE);
     }
+    private float[,] heightMap;
     public List<Vector2f> CreateRandompoints() {
         // Use Vector2f, instead of Vector2
         // Vector2f is pretty much the same than Vector2, but like you could run Voronoi in another thread
@@ -432,56 +441,112 @@ public class VoronoiDiagram : MonoBehaviour {
     }
 
     #region Gizmos
-    float scale = 10f;
+    //float scale = 10f;
+    public Vector2Int drawGizmosCenter;
+    public Vector2Int drawGizmosSize;
+    public void DisplayHeightMapGizmos(Vector2Int center, Vector2Int range)
+    {
+        int startX = Mathf.Max(center.x - range.x / 2, 0);
+        int endX = Mathf.Min(center.x + range.x / 2, heights.GetLength(0));
+
+        int startY = Mathf.Max(center.y - range.y / 2, 0);
+        int endY = Mathf.Min(center.y + range.y / 2, heights.GetLength(1));
+
+        for (int x = startX; x < endX; x++)
+        {
+            for (int y = startY; y < endY; y++)
+            {
+                Gizmos.DrawSphere(new Vector3(x, heights[x, y] * 50, y), .1f);
+            }
+        }
+    }
+
+    private void DisplayCornerGizmos()
+    {
+        foreach (var corner in corners)
+        {
+            Gizmos.color = GetBiomeColor(corner);
+
+            Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation * 50, corner.point.y), 1f);
+        }
+    }
+
+    private void DisplayCenterGizmos()
+    {
+        foreach (var center in centers)
+        {
+            Gizmos.color = GetBiomeColor(center);
+
+            Gizmos.DrawSphere(new Vector3(center.point.x, center.elevation * 50, center.point.y), 1f);
+        }
+    }
+
+    private void DisplayEdgeGizmos(bool cornerEdges, bool centerEdges, bool biomeColors)
+    {
+        foreach (var edge in mapEdges)
+        {
+            if (cornerEdges)
+            {
+                Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.d0), GetBiomeColor(edge.d1), 0.5f) : Color.white;
+
+                Gizmos.DrawLine(new Vector3(edge.v0.point.x, edge.v0.elevation * 50, edge.v0.point.y), new Vector3(edge.v1.point.x, edge.v1.elevation * 50, edge.v1.point.y));
+                Gizmos.color = biomeColors ? GetBiomeColor(edge.v0) : Color.blue;
+                Gizmos.DrawSphere(new Vector3(edge.v0.point.x, edge.v0.elevation * 50, edge.v0.point.y), 1f);
+                Gizmos.color = biomeColors ? GetBiomeColor(edge.v1) : Color.blue;
+                Gizmos.DrawSphere(new Vector3(edge.v1.point.x, edge.v1.elevation * 50, edge.v1.point.y), 1f);
+            }
+
+            if (centerEdges)
+            {
+                if (edge.v0 != null && edge.v1 != null)
+                {
+                    Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f) : Color.black;
+
+                    Gizmos.DrawLine(new Vector3(edge.d0.point.x, edge.d0.elevation * 50, edge.d0.point.y), new Vector3(edge.d1.point.x, edge.d1.elevation * 50, edge.d1.point.y));
+
+                    Gizmos.color = biomeColors ? GetBiomeColor(edge.d0) : Color.red;
+                    Gizmos.DrawSphere(new Vector3(edge.d0.point.x, edge.d0.elevation * 50, edge.d0.point.y), 1f);
+                    Gizmos.color = biomeColors ? GetBiomeColor(edge.d1) : Color.red;
+                    Gizmos.DrawSphere(new Vector3(edge.d1.point.x, edge.d1.elevation * 50, edge.d1.point.y), 1f);
+                }
+            }
+        }
+    }
+    public bool drawCorners, drawCenters, drawEdges, useBiomeColors;
+    public int howManyCentersToDraw = 0;
     void OnDrawGizmos()
     {
         if(map == null) return;
 
 
+        //DisplayHeightMapGizmos(drawGizmosCenter, drawGizmosSize);
         
-        
-        foreach(var corner in map.corners)
+        if(drawEdges)
         {
-            Gizmos.color = GetBiomeColor(corner);
-
-            Gizmos.DrawSphere(new Vector3(corner.point.x, corner.elevation*50, corner.point.y), 1f);
-        } 
-
-        // only draw the edges that are within the border
-        
-        foreach(Map.Edge edge in map.edges)
+            DisplayEdgeGizmos(drawCorners, drawCenters, useBiomeColors);
+        }
+        else
         {
-            // draw a red sphere at the d0 and d1 points
-            /*Gizmos.color = Color.red;
+            if(drawCorners) DisplayCornerGizmos();
+            if(drawCenters) DisplayCenterGizmos();
+        }
 
-            Gizmos.DrawSphere(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), 0.01f);
+        #region Debug Inside Check
+        for (int i = 0; i < centers.Count; i++)
+        {
+            if(i > howManyCentersToDraw) break;
 
-            Gizmos.DrawSphere(new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100), 0.01f); 
-            // draw a black line between d0 and d1
+            Gizmos.color = centers[i].Inside(centers[i].point) ? Color.green : Color.red;
+            Gizmos.DrawSphere(new Vector3(centers[i].point.x, 0, centers[i].point.y), 1f);
+
             Gizmos.color = Color.black;
-            Gizmos.DrawLine(new Vector3(edge.d0.point.x/100, edge.d0.elevation, edge.d0.point.y/100), new Vector3(edge.d1.point.x/100, edge.d1.elevation, edge.d1.point.y/100));*/
-
-            // draw a blue sphere at the v0 and v1 points
-            // draw a white line between v0 and v1
-            if(edge.v0 != null && edge.v1 != null)
+            foreach(var corner in centers[i].corners)
             {
-                //if(edge.river > 0) Gizmos.color = Color.blue;
-                Gizmos.color = BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f);
-                Gizmos.DrawLine(new Vector3(edge.v0.point.x, edge.v0.elevation*50, edge.v0.point.y), new Vector3(edge.v1.point.x, edge.v1.elevation*50, edge.v1.point.y));
+
+                Gizmos.DrawSphere(new Vector3(corner.point.x, 0, corner.point.y), 1f);
             }
         }
-        /* foreach(var center in centers)
-        {
-            for(int i = 0; i < corners.Count; i++)
-            {
-                Gizmos.color = GetBiomeColor(corners[i]);
-                Gizmos.DrawSphere(new Vector3(corners[i].point.x, corners[i].elevation*50, corners[i].point.y), 1f);
-                // draw a line to the next corner in the list use modulos to prevent an error
-                Gizmos.DrawLine(new Vector3(corners[i].point.x, corners[i].elevation*50, corners[i].point.y), new Vector3(corners[(i + 1) % corners.Count].point.x, corners[(i + 1) % corners.Count].elevation*50, corners[(i + 1) % corners.Count].point.y));
-            }
-        } */
-
-        // Draw a boundry with the Rectf bounds it has a float for the top bottom left and right
+        #endregion
 
         Gizmos.color = Color.red;
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.right, 0, bounds.top));
@@ -489,6 +554,16 @@ public class VoronoiDiagram : MonoBehaviour {
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.left, 0, bounds.bottom));
         Gizmos.DrawLine(new Vector3(bounds.right, 0, bounds.top), new Vector3(bounds.right, 0, bounds.bottom));
 
+    }
+
+    public void DebugReorderPoints()
+    {
+        if(map == null) return;
+
+        foreach(var center in centers)
+        {
+            center.OrderCornersClockwise();
+        }
     }
     public int displayPointAtIndex = 0;
     private Corner currentCorner;
@@ -527,7 +602,7 @@ public class TerrainGenerator
     }
     int terrainWidth = 100;
     int terrainLength = 100;
-    float heightScale = 10f;
+    float heightScale = 50f;
 
     List<Center> centers;
     List<Corner> corners;
@@ -645,51 +720,39 @@ public class TerrainGenerator
     }
 
     TerrainData GenerateTerrainData3()
-{
-    TerrainData terrainData = new TerrainData();
-    terrainData.heightmapResolution = terrainWidth + 1;
-    terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
-
-    heights = new float[terrainWidth + 1, terrainLength + 1];
-    float minHeight = float.MaxValue;
-    float maxHeight = float.MinValue;
-
-    // Raycast up from each heightmap point looking for the mesh height at that position
-    RaycastHit hit;
-    for (int x = 0; x < terrainWidth; x++)
     {
-        for (int y = 0; y < terrainLength; y++)
+        TerrainData terrainData = new TerrainData();
+        terrainData.heightmapResolution = terrainWidth + 1;
+        terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
+
+        //(float, EBiomeType)[,] map = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalizedNew(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        //heights = ConvertToFloatArray(map);
+        //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalized(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        terrainData.size = new Vector3(terrainData.size.x, 50, terrainData.size.z);
+        terrainData.SetHeights(0, 0, heights);
+        //terrainData.SetAlphamaps(0, 01) changes textures???
+
+        return terrainData;
+    }
+    float[,] ConvertToFloatArray((float, EBiomeType)[,] sourceArray)
+    {
+        int rows = sourceArray.GetLength(0);
+        int cols = sourceArray.GetLength(1);
+
+        float[,] resultArray = new float[rows, cols];
+
+        for (int i = 0; i < rows; i++)
         {
-            // Raycast up from the terrain to the mesh
-            Vector3 rayOrigin = new Vector3(x, 1000, y);
-            if (Physics.Raycast(rayOrigin, Vector3.down, out hit, Mathf.Infinity))
+            for (int j = 0; j < cols; j++)
             {
-                // Get the height of the mesh at the raycast hit point
-                float height = hit.point.y;
-
-                // Set the height of the terrain heightmap at this location
-                heights[x, y] = height;
-
-                // Update the minimum and maximum heights
-                minHeight = height < minHeight ? height : minHeight;
-                maxHeight = height > maxHeight ? height : maxHeight;
+                resultArray[i, j] = sourceArray[i, j].Item1;
             }
         }
+
+        return resultArray;
     }
 
-    // Normalize the heights
-    for (int x = 0; x < terrainWidth; x++)
-    {
-        for (int y = 0; y < terrainLength; y++)
-        {
-            heights[x, y] = Mathf.InverseLerp(minHeight, maxHeight, heights[x, y]) * 10;
-        }
-    }
-
-    terrainData.SetHeights(0, 0, heights);
-
-    return terrainData;
-}
     
     void GenerateTexture()
     {

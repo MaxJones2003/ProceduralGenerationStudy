@@ -1,11 +1,54 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 
+public class Poly
+{
+    public static float epsilon = 0.00001f;
+    public Vector2f[] Q;
+    public Poly(Vector2f[] Q)
+    {
+        this.Q = Q;
+    }
+    public int Inside(Vector2f P)
+    {
+        int result = 0;
+        int j = Q.Length - 1;
+        for (int i = 0; i < Q.Length; i++)
+        {
+            if (Q[i].y < P.y && Q[j].y >= P.y || 
+                Q[j].y < P.y && Q[i].y >= P.y)
+            {
+                if (Q[i].x + (P.y - Q[i].y) /
+                   (Q[j].y - Q[i].y) *
+                   (Q[j].x - Q[i].x) < P.x)
+                {
+                    result++;
+                }
+            }
+            j = i;
+        }
+        return result;
+    }
+
+    float Max(float a, float b)
+    {
+        return a > b ? a : b;
+    }
+    float Min(float a, float b)
+    {
+        return a < b ? a : b;
+    }
+}
 public class LineIntersect : MonoBehaviour
 {
-    public Vector3 a, b, c, d;
+    public Vector3[] polygon;
+    private Vector2f[] polyPoints;
+    public Vector2f query;
     public Vector2f FindIntersection(Vector2f outside, Vector2f inside, Vector2f boundA, Vector2f boundB)
     {
         float a1 = inside.y - outside.y;
@@ -49,29 +92,119 @@ public class LineIntersect : MonoBehaviour
     {
         return new Vector3(p.x, 0, p.y);
     }
+    private Poly poly;
+    void OnValidate()
+    {
+        //OrderCornersClockwise();
+        polyPoints = new Vector2f[polygon.Length];
+        for(int i = 0; i < polygon.Length; i++)
+        {
+            polyPoints[i] = ConvertV3ToV2f(polygon[i]);
+        }
+        poly = new Poly(polyPoints);
+    }
 
     void OnDrawGizmos()
     {
-        // draw a point for for a b blue cd red ab line green cd line yellow (if intersection is not NaN black)
-        Gizmos.color = Color.blue;
-        Gizmos.DrawSphere(a, 0.1f);
-        Gizmos.DrawSphere(b, 0.1f);
-        Gizmos.color = Color.red;
-        Gizmos.DrawSphere(c, 0.1f);
-        Gizmos.DrawSphere(d, 0.1f);
-
-        Gizmos.color = Color.green;
-        Gizmos.DrawLine(a, b);
-
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(c, d);
-
-        Vector2f intersection = FindIntersection(ConvertV3ToV2f(a), ConvertV3ToV2f(b), ConvertV3ToV2f(c), ConvertV3ToV2f(d));
-        if (!float.IsNaN(intersection.x) && !float.IsNaN(intersection.y))
+        if(poly == null) return;
+        for(int i = 0; i < poly.Q.Length; i++)
         {
+            Vector3 a = new Vector3(poly.Q[i].x, 0, poly.Q[i].y);
+            Vector3 b = new Vector3(poly.Q[(i+1)%poly.Q.Length].x, 0, poly.Q[(i+1)%poly.Q.Length].y);
             Gizmos.color = Color.black;
-            Gizmos.DrawSphere(ConvertV2fToV3(intersection), 0.1f);
+            Gizmos.DrawSphere(a, 0.1f);
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(a, b);
         }
+        int x = poly.Inside(query);
+        Gizmos.color = x % 2 != 0 ? Color.green : Color.red;
+        Gizmos.DrawSphere(new Vector3(query.x, 0, query.y), 0.01f);
+        Gizmos.DrawLine(new Vector3(query.x, 0, query.y), new Vector3(query.x, 0, query.y) - Vector3.right*1000);
+        Handles.Label(new Vector3(query.x, 0, query.y), x.ToString());
 
     }
+
+    public void OrderCornersClockwise()
+    {
+        if (polygon.Length == 0)
+            return;
+        List<Vector2f> points = new List<Vector2f>();
+        points = polygon.Select(p => ConvertV3ToV2f(p)).ToList();
+
+        // set the reference point to the left most corner
+        Vector2f referencePoint = points.OrderBy(c => c.y).ThenBy(c => c.x).First();
+
+        points.Sort((a, b) =>
+        {
+            float angleA = Mathf.Atan2(a.y - referencePoint.y, a.x - referencePoint.x);
+            float angleB = Mathf.Atan2(b.y - referencePoint.y, b.x - referencePoint.x);
+
+            // Adjust the angles to be between 0 and 2π
+            angleA = (angleA + 2 * Mathf.PI) % (2 * Mathf.PI);
+            angleB = (angleB + 2 * Mathf.PI) % (2 * Mathf.PI);
+
+            // Reverse the comparison to sort in clockwise order
+            return angleB.CompareTo(angleA);
+        });
+        for(int i = 0; i < points.Count; i++)
+        {
+            polygon[i] = ConvertV2fToV3(points[i]);
+        }
+    }
+
+    public void Order()
+    {
+        OrderCornersClockwise();
+        polyPoints = new Vector2f[polygon.Length];
+        for(int i = 0; i < polygon.Length; i++)
+        {
+            polyPoints[i] = ConvertV3ToV2f(polygon[i]);
+        }
+        poly = new Poly(polyPoints);
+    }
 }
+
+
+        /* THIS DIDN'T WORK
+        
+        // P - Point in question
+        // Q - Polygon in question
+        // R - Ray, starting at point P going right to infinity
+        Vector2f R = P;
+        R.x = float.MaxValue;
+        // A - Vertex of edge, y value is less than B
+        Vector2f A;
+        // B - Vertex of edge, y value is greater than A
+        Vector2f B;
+
+        bool inside = false;
+        for(int i = 0; i < Q.Length; i++)
+        {
+            A = Q[i].y < Q[(i+1)%Q.Length].y ? Q[i] : Q[(i+1)%Q.Length];
+            B = Q[i].y > Q[(i+1)%Q.Length].y ? Q[i] : Q[(i+1)%Q.Length];
+            
+
+            if(P.y == A.y || P.y == B.y) P.y += epsilon; // Make sure the point is not at the same height as a vertex
+
+            if(P.y > B.y || P.y < A.y || P.x > Max(A.x, B.x))
+            {
+                // The ray doesn't intersect the edge
+                continue;
+            }
+
+            if(P.x < Min(A.x, B.x))
+            {
+                inside = !inside;
+                continue;
+            }
+
+            float edge = (B.y - A.y) / (B.x - A.x);
+            float point = (B.y - A.y) / (P.x - A.x);
+
+            if(point >= edge)
+            {
+                inside = !inside;
+                continue;
+            }
+        }
+        return inside; */

@@ -4,7 +4,7 @@ using UnityEditor;
 [CustomEditor(typeof(BarycentricInterpolationTest))]
 public class BarycentricInterpolationTestEditor : Editor
 {
-    public override void OnInspectorGUI()
+    /* public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
@@ -13,5 +13,5 @@ public class BarycentricInterpolationTestEditor : Editor
         {
             myScript.OrderCorners();
         }
-    }
+    } */
 }

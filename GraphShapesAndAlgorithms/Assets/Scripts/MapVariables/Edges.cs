@@ -13,7 +13,5 @@ namespace Map
 
         [HideInInspector] public Vector2f midpoint;  // halfway between v0,v1
         [HideInInspector] public int river;  // volume of water, or 0
-
- 
     }
 }

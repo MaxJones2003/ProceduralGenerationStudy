@@ -5,7 +5,9 @@ using System.Numerics;
 using Unity.VisualScripting.Dependencies.NCalc;
 using UnityEngine;
 
-public struct Hex
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+public readonly struct Hex
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
 {
     public readonly int q;
     public readonly int r;

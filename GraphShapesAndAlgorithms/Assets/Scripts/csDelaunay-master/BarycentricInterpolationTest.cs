@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class BarycentricInterpolationTest : MonoBehaviour
 {
-    public Vector2f point;
+    /* public Vector2f point;
     float elevation = 0;
     public List<Vector3> points;
     Center center;
@@ -111,10 +111,10 @@ public class BarycentricInterpolationTest : MonoBehaviour
             }
             j = i;
         }
-        return result; */
+        return result; 
 
         List<Vector2f> points = new List<Vector2f>();
         polygon.ForEach(c => points.Add(c.point));
         return InsidePolygonHelper.checkInside(points, points.Count, testPoint) == 1;
-    }
+    } */
 }

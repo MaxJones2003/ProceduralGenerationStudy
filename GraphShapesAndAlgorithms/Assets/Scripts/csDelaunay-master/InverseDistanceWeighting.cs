@@ -357,7 +357,7 @@ public class InsidePolygonHelper
     List<Vector2f> polygon
       = new List<Vector2f>{ new Vector2f(0, 0), new Vector2f(10, 0), new Vector2f(10, 10), new Vector2f(0, 10) };
     Vector2f p = new Vector2f(5, 3 );
-    int n = 4;
+    //int n = 4;
  
     /* // Function call
     if (checkInside(polygon, n, p)==1)

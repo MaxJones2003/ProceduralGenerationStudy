@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using csDelaunay;
 using System.Linq;
 using System;
-using System.Drawing;
+/* using System.Drawing;
 using System.Net.Sockets;
 using System.Numerics;
-using Unity.VisualScripting;
+using Unity.VisualScripting; */
 using UnityEngine;
-using System.Reflection;
+//using System.Reflection;
 using System.Diagnostics;
-using UnityEngine;
+//using UnityEngine;
 
 namespace Map
 {
@@ -57,7 +57,7 @@ namespace Map
             Reset();
         }
          // Random parameters governing the overall shape of the island
-         int goStage = 0;
+         int goStage = 4;
         public void  NewIsland(IslandShapeEnum islandShapeEnum, int numPoints_, int seed) 
         {
             numPoints = numPoints_;
@@ -136,6 +136,7 @@ namespace Map
 
         public void Go(int first, int last)
         {
+            
             var stages = new List<Tuple<string, Action>>();
 
             void TimeIt(string name, Action action)
@@ -754,7 +755,7 @@ namespace Map
         }*/
         public void AssignCornerElevations()
         {
-            Corner q, s;
+            Corner q;
             Queue<Corner> queue = new Queue<Corner>();
 
             foreach (var corner in corners)

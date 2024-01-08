@@ -149,7 +149,11 @@ public class Hex_Cell
     public float temperature;
 }
 [System.Serializable]
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
 public class Hex_Corner
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
 {
     public Vector3 position;
     public Hex_Corner(Vector3 pos)

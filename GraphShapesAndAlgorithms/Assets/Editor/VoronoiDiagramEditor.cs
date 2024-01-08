@@ -15,6 +15,16 @@ public class VoronoiDiagramEditor : Editor
             voronoi.GenerateVoronoi();
         }
 
+        if(GUILayout.Button("Clear Voronoi Map Values"))
+        {
+            voronoi.map = null;
+        }
+
+        if(GUILayout.Button("Reorder corners"))
+        {
+            voronoi.DebugReorderPoints();
+        }
+
         base.OnInspectorGUI();
     }
 }

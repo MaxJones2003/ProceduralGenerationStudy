@@ -1,12 +1,11 @@
 using csDelaunay;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace Map
 {
-    public class Center
+    public class Center : IKDTreeItem
     {
         //public Center(Vector2f point, Site site)
         //{
@@ -21,7 +20,14 @@ namespace Map
         public int index;
 
         public Vector2f point;  // location
+        
         [HideInInspector]public List<Site> sites; // Any Delaunay cell with this point in its edges
+
+        #region IKDTreeItem
+        public Vector2f Position => point;
+
+        public float this[int dimension] => point[dimension];
+        #endregion
 
         public bool water;  // lake or ocean
         public bool ocean;  // ocean
@@ -85,6 +91,28 @@ namespace Map
             }
 
             return centroid / corners.Count;
+        }
+
+        public bool Inside(Vector2f P)
+        {
+            //OrderCornersClockwise();
+            bool result = false;
+            int j = corners.Count - 1;
+            for (int i = 0; i < corners.Count; i++)
+            {
+                if (corners[i].point.y < P.y && corners[j].point.y >= P.y || 
+                    corners[j].point.y < P.y && corners[i].point.y >= P.y)
+                {
+                    if (corners[i].point.x + (P.y - corners[i].point.y) /
+                    (corners[j].point.y - corners[i].point.y) *
+                    (corners[j].point.x - corners[i].point.x) < P.x)
+                    {
+                        result = !result;
+                    }
+                }
+                j = i;
+            }
+            return result;
         }
 
         #region Overrides

@@ -18,11 +18,11 @@ MonoBehaviour:
     normalizeMode: 0
     scale: 40
     octaves: 6
-    persistance: 0.696
-    lacunarity: 1.2
-    seed: 0
-    offset: {x: 0, y: 0}
-  heightMultiplier: 4
+    persistance: 0.58
+    lacunarity: 1
+    seed: 37
+    offset: {x: -39.34, y: 0}
+  heightMultiplier: 37.89
   heightCurve:
     serializedVersion: 2
     m_Curve:
