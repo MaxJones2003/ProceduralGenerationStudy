@@ -725,9 +725,9 @@ public class TerrainGenerator
         terrainData.heightmapResolution = terrainWidth + 1;
         terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
 
-        //(float, EBiomeType)[,] map = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
-        heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalizedNew(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
-        //heights = ConvertToFloatArray(map);
+        //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalizedNew(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        (float, EBiomeType)[,] map = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        heights = ConvertToFloatArray(map);
         //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalized(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
         terrainData.size = new Vector3(terrainData.size.x, 50, terrainData.size.z);
         terrainData.SetHeights(0, 0, heights);
