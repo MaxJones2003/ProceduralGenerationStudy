@@ -1,0 +1,11 @@
+1. Segment data into quads, pre-interpolation
+
+2. Find biomes in each quad
+	a. further segment by each biome
+	b. generate unique terrain styles for each biome,
+	c. smoothe height map data between biome chunks
+3. Apply textures based off of biome data
+4. Generate flora based off of biome data
+5. Generate POI's based off of roads and rivers
+
+extra. figure out how to generate water, will probably happen during step 2
