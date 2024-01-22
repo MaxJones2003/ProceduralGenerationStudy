@@ -9,3 +9,5 @@
 5. Generate POI's based off of roads and rivers
 
 extra. figure out how to generate water, will probably happen during step 2
+
+https://forum.unity.com/threads/dividing-terrain-into-biomes.313410/
