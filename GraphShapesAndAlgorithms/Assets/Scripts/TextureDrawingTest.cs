@@ -12,6 +12,7 @@ public class TextureDrawingTest : MonoBehaviour
     public float maxElevation = 1f;
     Texture2D texture;
     public Map.Map map;
+    public bool testInside;
     public bool testRadial;
     public bool drawRivers;
     public bool drawBiomes;
@@ -28,7 +29,7 @@ public class TextureDrawingTest : MonoBehaviour
         Material material = GetComponent<Renderer>().sharedMaterial;
         Color color = steps < 4 ? Color.grey : Color.blue;
         // Set the texture to blue
-        if(!testRadial)
+        if(!testRadial && !testInside)
         {
             for(int i=0; i<texture.width; i++)
                 for(int j=0; j<texture.height; j++)
@@ -79,7 +80,20 @@ public class TextureDrawingTest : MonoBehaviour
                 }
             }
         }
-        else
+        else if(testInside)
+        {
+            LineIntersect check = GetComponent<LineIntersect>();
+            check.SetUp(corners);
+            // This draws the noise map
+            for (int i = 0; i < texture.width; i++)
+                for (int j = 0; j < texture.height; j++)
+                {
+                    Color mC = check.IsInside(new Vector2f(i, j)) ? Color.white : Color.black;
+                    texture.SetPixel(i, j, mC);
+                    
+                }
+        }
+        else if (testRadial)
         {
             // This draws the noise map
             for(int i=0; i<texture.width; i++)
@@ -92,6 +106,7 @@ public class TextureDrawingTest : MonoBehaviour
                 }
 
         }
+        
 
 
 
