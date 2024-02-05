@@ -81,7 +81,7 @@ public class KDTREETEST : MonoBehaviour
                 for (int i = 0; i < searchTimes; i++)
                 {
                     Vector2 pos = new Vector2(UnityEngine.Random.Range(-SIZE, SIZE), UnityEngine.Random.Range(-SIZE, SIZE));
-                    tree.FindNearestNeighbors(new Vector2f(pos.x, pos.y), 5, ref treversed);
+                    tree.FindNearestNeighbors(new Vector2f(pos.x, pos.y), 5);
                     //interpolatedPoints.Add(new Vector3(np.Position.x, np.elevation, np.Position.y));
                 }
             }));

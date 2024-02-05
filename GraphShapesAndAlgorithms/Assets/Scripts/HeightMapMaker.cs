@@ -46,7 +46,7 @@ public class HeightMapMaker
                         int trev = 0;
                         var pos = new Vector2f(x, y);
                         // Find the nearest point in the quadtree
-                        var nearestCenters = tree.FindNearestNeighbors(pos, 10, ref trev);
+                        var nearestCenters = tree.FindNearestNeighbors(pos, 5);
                         
                         Center nearestCenter = nearestCenters.Where(c => c.Inside(pos)).FirstOrDefault();
                         if(nearestCenter == null) nearestCenter = nearestCenters[0];
@@ -143,7 +143,6 @@ public class HeightMapMaker
                 maxH = float.MinValue;
                 float time = 0f;
                 int iterations = 0;
-                Vector2f pos = new Vector2f();
                 Corner[] nearestCorners = new Corner[numOfNeighbors];
                 // Iterate over the range of x and y values
                 for (int y = 0; y < height; y++)
@@ -152,9 +151,8 @@ public class HeightMapMaker
                     {
                         var stopwatch = Stopwatch.StartNew();
                         // Find the nearest point in the quadtree
-                        pos = new Vector2f(x, y);
                         int treversed = 0;
-                        nearestCorners = tree.FindNearestNeighbors(pos, 5, ref treversed);
+                        nearestCorners = tree.FindNearestNeighbors(new Vector2f(x, y), 5);
                         nearestCornersMap[y, x] = nearestCorners;
                         //heightMap[y, x].Item2 = nearestCorners[0].;
                         
@@ -173,17 +171,15 @@ public class HeightMapMaker
                 // Create a 2D array for the height map
                 heightMap = new (float, EBiomeType)[height, width];
                 maxH = float.MinValue;
-                Vector2f pos = new Vector2f();
                 // Iterate over the range of x and y values
                 for (int y = 0; y < height; y++)
                 {
                     for (int x = 0; x < width; x++)
                     {
                         // Find the nearest point in the quadtree
-                        pos = new Vector2f(x, y);
                         var nearestCorners = nearestCornersMap[y, x];
                         // Assign the elevation of the nearest point to the height of the point (x, y)
-                        heightMap[y, x].Item1 = IDWInterpolator(nearestCorners, pos) * scale;
+                        heightMap[y, x].Item1 = IDWInterpolator(nearestCorners, new Vector2f(x, y)) * scale;
                         
                         maxH = heightMap[y, x].Item1 > maxH ? heightMap[y, x].Item1 : maxH;
                         minH = heightMap[y, x].Item1 < minH ? heightMap[y, x].Item1 : minH;
@@ -305,8 +301,7 @@ public class HeightMapMaker
             {
                 // Find the nearest point in the quadtree
                 Vector2f pos = new Vector2f(x, y);
-                int treversed = 0;
-                var nearestCorners = tree.FindNearestNeighbors(pos, 5, ref treversed);
+                var nearestCorners = tree.FindNearestNeighbors(pos, 5);
 
                 // Assign the elevation of the nearest point to the height of the point (x, y)
                 heightMap[y, x] = IDWInterpolator(nearestCorners, pos) * scale;

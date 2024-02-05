@@ -88,27 +88,25 @@ public class KDTree<T> where T : IKDTreeItem
         return bestNode.Value;
     }
 
-    public T[] FindNearestNeighbors(Vector2f queryPoint, int nearestCount, ref int treversed)
+    /* public T[] FindNearestNeighbors(Vector2f queryPoint, int nearestCount)
     {
         if (root == null)
         {
             throw new InvalidOperationException("The KD tree is empty.");
         }
         SortedList<float, Node> nearestNodes = new SortedList<float, Node>(new DuplicateKeyComparer<float>());
-        FindNearestNeighborsRecursive(root, queryPoint, 0, nearestCount, ref treversed, ref nearestNodes);
+        FindNearestNeighborsRecursive(root, queryPoint, 0, nearestCount, ref nearestNodes);
         return nearestNodes.Values.Select(n => n.Value).ToArray();
-    }
+    } */
 
-    private void FindNearestNeighborsRecursive(Node node, Vector2f queryPoint, int depth, int count, ref int timesTreversed, ref SortedList<float, Node> nearestNodes)
+
+    /* private void FindNearestNeighborsRecursive(Node node, Vector2f queryPoint, int depth, int count,  ref SortedList<float, Node> nearestNodes)
     {
         // If the node is null, we've reached a leaf node, so return
         if (node == null)
         {
             return;
         }
-
-        // Increment the count of traversed nodes
-        timesTreversed++;
 
         // Determine the current dimension (x or y) based on the depth
         int currentDimension = depth % 2;
@@ -134,7 +132,7 @@ public class KDTree<T> where T : IKDTreeItem
         }
 
         // Recursively call the function on the otherNode
-        FindNearestNeighborsRecursive(otherNode, queryPoint, depth + 1, count, ref timesTreversed, ref nearestNodes);
+        FindNearestNeighborsRecursive(otherNode, queryPoint, depth + 1, count, ref nearestNodes);
 
         // Calculate the distance from the query point to the current node's point
         float distance = Distance(queryPoint, node.Value.Position);
@@ -155,16 +153,92 @@ public class KDTree<T> where T : IKDTreeItem
         // recursively call the function on the other child node of the current node
         if (nearestNodes.Count < count || distanceToDecisionBoundary < nearestNodes.Keys[nearestNodes.Count - 1])
         {
-            FindNearestNeighborsRecursive(node.Left == otherNode ? node.Right : node.Left, queryPoint, depth + 1, count, ref timesTreversed, ref nearestNodes);
+            FindNearestNeighborsRecursive(node.Left == otherNode ? node.Right : node.Left, queryPoint, depth + 1, count, ref nearestNodes);
         }
-    }    
+    }     */
+    /* private void FindNearestNeighborsRecursive(Node node, Vector2f queryPoint, int depth, int count, ref SortedList<float, Node> nearestNodes)
+    {
+        if (node == null) return;
+
+        int currentDimension = depth % 2;
+        float distance = Distance(queryPoint, node.Value.Position);
+
+        // Track and update the best distance and node so far
+        if (nearestNodes.Count < count || distance < nearestNodes.Keys[nearestNodes.Count - 1])
+        {
+            nearestNodes.Add(distance, node);
+            if (nearestNodes.Count > count)
+            {
+                nearestNodes.RemoveAt(nearestNodes.Count - 1);
+            }
+        }
+
+        Node nextNode = queryPoint[currentDimension] < node.Value.Position[currentDimension] ? node.Left : node.Right;
+        Node otherNode = nextNode == node.Left ? node.Right : node.Left;
+
+        // Search down the tree
+        FindNearestNeighborsRecursive(nextNode, queryPoint, depth + 1, count, ref nearestNodes);
+
+        // Check if we need to search the other side
+        float distanceToDecisionBoundary = Math.Abs(node.Value.Position[currentDimension] - queryPoint[currentDimension]);
+        if (nearestNodes.Count < count || distanceToDecisionBoundary < nearestNodes.Keys[nearestNodes.Count - 1])
+        {
+            FindNearestNeighborsRecursive(otherNode, queryPoint, depth + 1, count, ref nearestNodes);
+        }
+    } */
+
+    public T[] FindNearestNeighbors(Vector2f queryPoint, int nearestCount)
+    {
+        if (root == null)
+        {
+            throw new InvalidOperationException("The KD tree is empty.");
+        }
+
+        // Initialize the nearestNodes list with the exact capacity
+        var nearestNodes = new SortedList<float, Node>(nearestCount);
+
+        FindNearestNeighborsRecursive(root, queryPoint, 0, nearestCount, nearestNodes);
+
+        // Convert the SortedList of Node objects to an array of Node.Value objects and return it
+        return nearestNodes.Values.Select(node => node.Value).ToArray();
+    }
+
+    private void FindNearestNeighborsRecursive(Node node, Vector2f queryPoint, int depth, int count, SortedList<float, Node> nearestNodes)
+    {
+        if (node == null) return;
+
+        int currentDimension = depth % 2;
+        float distance = Distance(queryPoint, node.Value.Position);
+
+        // Track and update the best distance and node so far
+        if (nearestNodes.Count < count || distance < nearestNodes.Keys[nearestNodes.Count - 1])
+        {
+            nearestNodes.Add(distance, node);
+            if (nearestNodes.Count > count)
+            {
+                nearestNodes.RemoveAt(nearestNodes.Count - 1);
+            }
+        }
+
+        Node nextNode = queryPoint[currentDimension] < node.Value.Position[currentDimension] ? node.Left : node.Right;
+        Node otherNode = nextNode == node.Left ? node.Right : node.Left;
+
+        // Search down the tree
+        FindNearestNeighborsRecursive(nextNode, queryPoint, depth + 1, count, nearestNodes);
+
+        // Check if we need to search the other side
+        float distanceToDecisionBoundary = Math.Abs(node.Value.Position[currentDimension] - queryPoint[currentDimension]);
+        if (nearestNodes.Count < count || distanceToDecisionBoundary < nearestNodes.Keys[nearestNodes.Count - 1])
+        {
+            FindNearestNeighborsRecursive(otherNode, queryPoint, depth + 1, count, nearestNodes);
+        }
+    }
 
     private float Distance(Vector2f point1, Vector2f point2)
     {
         return (point1 - point2).magnitude;
     }
-
-    private class Node
+    public class Node
     {
         public T Value { get; }
         public Node Left { get; set; }
@@ -176,7 +250,6 @@ public class KDTree<T> where T : IKDTreeItem
         }
     }
 }
-
 
 
 public interface IKDTreeItem
