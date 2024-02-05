@@ -5,6 +5,7 @@ using System.Linq;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using Map;
 
 public class Poly
 {
@@ -35,6 +36,27 @@ public class Poly
         return result;
     }
 
+    public bool InsideBool(Vector2f P)
+    {
+        int result = 0;
+        int j = Q.Length - 1;
+        for (int i = 0; i < Q.Length; i++)
+        {
+            if (Q[i].y < P.y && Q[j].y >= P.y ||
+                Q[j].y < P.y && Q[i].y >= P.y)
+            {
+                if (Q[i].x + (P.y - Q[i].y) /
+                   (Q[j].y - Q[i].y) *
+                   (Q[j].x - Q[i].x) < P.x)
+                {
+                    result++;
+                }
+            }
+            j = i;
+        }
+        return result % 2 != 0;
+    }
+
     float Max(float a, float b)
     {
         return a > b ? a : b;
@@ -46,9 +68,80 @@ public class Poly
 }
 public class LineIntersect : MonoBehaviour
 {
-    public Vector3[] polygon;
+    private Vector3[] polygon;
     private Vector2f[] polyPoints;
-    public Vector2f query;
+    private Vector2f query;
+
+    public void SetUp(List<Map.Corner> corners)
+    {
+        polyPoints = GetBorders(corners);
+        //for (int i = 0; i < 1; i++) OrderCornersClockwise();
+        //Order();
+        
+        poly = new Poly(polyPoints);
+    }
+    private Vector2f[] GetBorders(List<Corner> corners)
+    {
+        List<Vector2f> borders = new List<Vector2f>();
+        List<Corner> cornerBorders = new List<Corner>();
+        foreach (Corner c in corners)
+        {
+            if (c.coast)
+            {
+                cornerBorders.Add(c);
+                break;
+            }
+            
+        }
+
+        // recursively look through the found border points
+        // if it is a border, add it to the list, 
+        // then search the newest point
+        // make sure a found point isnt already contained in the borders list
+        bool foundFirstPoint = false;
+        int borderIndex = 0;
+        while(!foundFirstPoint)
+        {
+            foreach (Corner c in cornerBorders[borderIndex].adjacent) 
+            {
+                if (c == cornerBorders[borderIndex]) continue;
+
+                if (c.coast)
+                {
+                    bool isFirst = c != cornerBorders[0];
+                    if(isFirst)
+                    {
+                        foundFirstPoint = true;
+                        Debug.Log("first found at index "+ borderIndex);
+                        break;
+                    }
+                    if(!cornerBorders.Contains(c))
+                    {
+                        cornerBorders.Add(c);
+                        borderIndex++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach (Corner c in cornerBorders)
+        {
+            if (c.coast)
+            {
+                borders.Add(c.point);
+            }
+
+            break;
+        }
+
+        return borders.ToArray();
+    }
+
+    public bool IsInside(Vector2f point)
+    {
+        return poly.InsideBool(point);
+    }
     public Vector2f FindIntersection(Vector2f outside, Vector2f inside, Vector2f boundA, Vector2f boundB)
     {
         float a1 = inside.y - outside.y;
@@ -96,17 +189,30 @@ public class LineIntersect : MonoBehaviour
     void OnValidate()
     {
         //OrderCornersClockwise();
-        polyPoints = new Vector2f[polygon.Length];
-        for(int i = 0; i < polygon.Length; i++)
-        {
-            polyPoints[i] = ConvertV3ToV2f(polygon[i]);
-        }
-        poly = new Poly(polyPoints);
+        //polyPoints = new Vector2f[polygon.Length];
+        //for(int i = 0; i < polygon.Length; i++)
+        //{
+        //    polyPoints[i] = ConvertV3ToV2f(polygon[i]);
+        //}
+        //poly = new Poly(polyPoints);
     }
+    public int drawLines = 1;
 
     void OnDrawGizmos()
     {
         if(poly == null) return;
+
+        for(int i = 0; i < poly.Q.Length; i++)
+        {
+            Vector3 a = new Vector3(poly.Q[i].x, 0, poly.Q[i].y);
+            Gizmos.DrawSphere(a, 1.5f);
+            if(i < drawLines)
+            {
+                Vector3 b = new Vector3(poly.Q[(i + 1) % poly.Q.Length].x, 0, poly.Q[(i + 1) % poly.Q.Length].y);
+                Gizmos.DrawLine(a, b);
+            }
+        }
+        return;
         for(int i = 0; i < poly.Q.Length; i++)
         {
             Vector3 a = new Vector3(poly.Q[i].x, 0, poly.Q[i].y);
@@ -155,12 +261,12 @@ public class LineIntersect : MonoBehaviour
     public void Order()
     {
         OrderCornersClockwise();
-        polyPoints = new Vector2f[polygon.Length];
+       /* polyPoints = new Vector2f[polygon.Length];
         for(int i = 0; i < polygon.Length; i++)
         {
             polyPoints[i] = ConvertV3ToV2f(polygon[i]);
         }
-        poly = new Poly(polyPoints);
+        poly = new Poly(polyPoints);*/
     }
 }
 
