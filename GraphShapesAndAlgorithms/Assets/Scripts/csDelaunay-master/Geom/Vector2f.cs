@@ -30,8 +30,15 @@ public struct Vector2f {
 			return (float)Math.Sqrt(x*x + y*y);
 		}
 	}
+    public float sqrMagnitude
+    {
+        get
+        {
+            return (x * x + y * y);
+        }
+    }
 
-	public void Normalize() {
+    public void Normalize() {
 		float magnitude = this.magnitude;
 		x /= magnitude;
 		y /= magnitude;

@@ -236,7 +236,7 @@ public class KDTree<T> where T : IKDTreeItem
 
     private float Distance(Vector2f point1, Vector2f point2)
     {
-        return (point1 - point2).magnitude;
+        return (point1 - point2).sqrMagnitude;
     }
     public class Node
     {
