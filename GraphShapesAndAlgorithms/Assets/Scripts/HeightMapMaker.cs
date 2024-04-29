@@ -384,7 +384,7 @@ public class HeightMapMaker
         public Vector2f position;
         public float height;
     }
-    public static float[,] ComputeShaderHeightMap(ComputeShader heightMapComputeShader, ComputeShader gaussianComputeShader, float scale, int width, List<Corner> Corners)
+    public static float[,] ComputeShaderHeightMap(bool useGaus, ComputeShader heightMapComputeShader, ComputeShader gaussianComputeShader, float scale, int width, List<Corner> Corners)
     {
         int heightSize = sizeof(float);
         int positionSize = heightSize * 2;
@@ -421,7 +421,8 @@ public class HeightMapMaker
         gaussianComputeShader.SetInt("maxIndex", width * width);
 
         heightMapComputeShader.Dispatch(0, width / 8, width / 8, 1);
-        gaussianComputeShader.Dispatch(0, width / 8, width / 8, 1);
+        if(useGaus)
+            gaussianComputeShader.Dispatch(0, width / 8, width / 8, 1);
 
         heightMapBuffer.GetData(data);
 

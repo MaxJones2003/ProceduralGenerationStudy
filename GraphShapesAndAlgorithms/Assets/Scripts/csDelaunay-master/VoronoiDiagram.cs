@@ -7,6 +7,7 @@ using Map;
 using static IDWInterpolator;
 
 public class VoronoiDiagram : MonoBehaviour {
+    public bool usGaus;
     public Terrain terrain; // Drag and drop your Unity Terrain here in the Inspector.
     // The number of polygons/sites we want
     public IslandShapeEnum islandShape = IslandShapeEnum.Radial;
@@ -73,7 +74,7 @@ public class VoronoiDiagram : MonoBehaviour {
 
         DebugReorderPoints();
 
-        TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh);
+        TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh, usGaus);
         
         terrain.terrainData = terrainGenerator.GenerateTerrain(heightMapComputeShader, gaussianBlurComputeShader);
 
@@ -604,7 +605,8 @@ public class VoronoiDiagram : MonoBehaviour {
 
 public class TerrainGenerator
 {
-    public TerrainGenerator(List<Center> centers, List<Corner> corners, Map.Grid grid, Terrain terrain, int SIZE, Mesh mesh)
+    bool useGaus;
+    public TerrainGenerator(List<Center> centers, List<Corner> corners, Map.Grid grid, Terrain terrain, int SIZE, Mesh mesh, bool useGaus)
     {
         this.centers = centers;
         this.corners = corners;
@@ -613,6 +615,7 @@ public class TerrainGenerator
         terrainWidth = SIZE;
         terrainLength = SIZE;
         this.mesh = mesh;
+        this.useGaus = useGaus;
     }
     int terrainWidth = 100;
     int terrainLength = 100;
@@ -635,7 +638,7 @@ public class TerrainGenerator
             return null;
         }
 
-        return GenerateTerrainData3(heightMapComputeShader, gaussianBlueComputeShader);
+        return GenerateTerrainData3(heightMapComputeShader, gaussianBlueComputeShader, useGaus);
         
     }
 
@@ -733,7 +736,7 @@ public class TerrainGenerator
         return terrainData;
     }
 
-    TerrainData GenerateTerrainData3(ComputeShader heightMapComputeShader, ComputeShader gaussianBlueComputeShader)
+    TerrainData GenerateTerrainData3(ComputeShader heightMapComputeShader, ComputeShader gaussianBlueComputeShader, bool useGaus)
     {
         TerrainData terrainData = new TerrainData();
         terrainData.heightmapResolution = terrainWidth + 1;
@@ -741,7 +744,7 @@ public class TerrainGenerator
 
         //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalizedNew(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
         //heights = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
-        heights = HeightMapMaker.ComputeShaderHeightMap(heightMapComputeShader, gaussianBlueComputeShader, 1, terrainLength + 1, corners);
+        heights = HeightMapMaker.ComputeShaderHeightMap(useGaus, heightMapComputeShader, gaussianBlueComputeShader, 1, terrainLength + 1, corners);
         //heights = ConvertToFloatArray(map);
         //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalized(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
         terrainData.size = new Vector3(terrainData.size.x, 50, terrainData.size.z);

@@ -3,7 +3,6 @@
 
 RWStructuredBuffer<float> heightMap;
 
-
 int width = 0;
 int maxIndex = 0;
 [numthreads(8,8,1)]
@@ -12,9 +11,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float sum = 0;
     int count = 0;
 
-    for (int y = -2; y <= 2; y++)
+    for (int y = -5; y <= 5; y++)
     {
-        for (int x = -2; x <= 2; x++)
+        for (int x = -5; x <= 5; x++)
         {
             int offsetIndex = (id.y + y) * width + (id.x + x);
             if (offsetIndex >= 0 && offsetIndex < maxIndex)
