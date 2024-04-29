@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using Map;
@@ -79,6 +77,7 @@ public class LineIntersect : MonoBehaviour
         //Order();
         
         poly = new Poly(polyPoints);
+        Debug.Log(poly.Q.Length);
     }
     private Vector2f[] GetBorders(List<Corner> corners)
     {
@@ -89,6 +88,9 @@ public class LineIntersect : MonoBehaviour
             if (c.coast)
             {
                 cornerBorders.Add(c);
+                int x = 0;
+                foreach(var q in c.adjacent)
+                    if(q.coast) x++;
                 break;
             }
             
@@ -100,42 +102,79 @@ public class LineIntersect : MonoBehaviour
         // make sure a found point isnt already contained in the borders list
         bool foundFirstPoint = false;
         int borderIndex = 0;
+        int attempt = 0;
+        Corner currentCorner = cornerBorders[borderIndex];
+        Corner previousCorner = cornerBorders[borderIndex];
         while(!foundFirstPoint)
         {
-            foreach (Corner c in cornerBorders[borderIndex].adjacent) 
+            currentCorner = cornerBorders[borderIndex];
+            if(NumOfAdjacentCoasts(currentCorner) == 3)
             {
-                if (c == cornerBorders[borderIndex]) continue;
+                // this is a special case and needs to be handled differently
+                // check the num of adjacent coasts of each adjacent corner if it is a coast
+                // if its a coast and has 3 adj coasts, ignore it, if we dont, we get infinite loops kinda
+                //int indexWithThreeCoasts = -1;
+                //int nextIndex = -1;
+                //bool foundNext = false;
+                
 
-                if (c.coast)
+                // this doesnt work :(
+                //foreach(var q in cornerBorders[borderIndex].touches)
+                    foreach(Corner c in cornerBorders[borderIndex].touches[0].corners)    
+                    {
+                        if(c.coast && c.index != previousCorner.index && c.adjacent.Contains(previousCorner))
+                        {
+                            cornerBorders.Add(c);
+                            borderIndex++;
+                            break;
+                        }
+                    }   
+
+            }
+            else
+            {
+                foreach (Corner c in cornerBorders[borderIndex].adjacent) 
                 {
-                    bool isFirst = c != cornerBorders[0];
-                    if(isFirst)
+                    if (c.coast)
                     {
-                        foundFirstPoint = true;
-                        Debug.Log("first found at index "+ borderIndex);
-                        break;
-                    }
-                    if(!cornerBorders.Contains(c))
-                    {
-                        cornerBorders.Add(c);
-                        borderIndex++;
-                        break;
+                        //Debug.Log("coast found");
+                        if(c.index == cornerBorders[0].index && borderIndex > 3)
+                        {
+                            foundFirstPoint = true;
+                            //Debug.Log("first found at index "+ borderIndex);
+                            break;
+                        }
+                        if(!cornerBorders.Contains(c))
+                        {
+                            //Debug.Log("added point \n" + c.index);
+                            cornerBorders.Add(c);
+                            borderIndex++;
+                            break;
+                        }
                     }
                 }
             }
-        }
-
-        foreach (Corner c in cornerBorders)
-        {
-            if (c.coast)
+            if(attempt > 100000)
             {
-                borders.Add(c.point);
-            }
-
-            break;
+                Debug.Log(NumOfAdjacentCoasts(currentCorner));
+                Debug.Log("hit limit");
+                break;
+            } 
+            attempt++;
+            previousCorner = currentCorner;
         }
 
-        return borders.ToArray();
+        return cornerBorders.Select(c => c.point).ToArray();
+    }
+
+    private int NumOfAdjacentCoasts(Corner corner)
+    {
+        int adj = 0;
+        for(int i = 0; i < corner.adjacent.Count; i++)
+        {
+            adj += corner.adjacent[i].coast ? 1 : 0;
+        }
+        return adj;
     }
 
     public bool IsInside(Vector2f point)
@@ -205,7 +244,7 @@ public class LineIntersect : MonoBehaviour
         for(int i = 0; i < poly.Q.Length; i++)
         {
             Vector3 a = new Vector3(poly.Q[i].x, 0, poly.Q[i].y);
-            Gizmos.DrawSphere(a, 1.5f);
+            Gizmos.DrawSphere(a, 2f);
             if(i < drawLines)
             {
                 Vector3 b = new Vector3(poly.Q[(i + 1) % poly.Q.Length].x, 0, poly.Q[(i + 1) % poly.Q.Length].y);
@@ -270,7 +309,42 @@ public class LineIntersect : MonoBehaviour
     }
 }
 
-
+/* if(NumOfAdjacentCoasts(currentCorner.adjacent[j]) == 2 && currentCorner.adjacent[j].coast)
+                    {
+                        // this is the one we want
+                        if(currentCorner.adjacent[j].index == cornerBorders[0].index && borderIndex > 3)
+                        {
+                            foundFirstPoint = true;
+                            //Debug.Log("special first found at index "+ borderIndex);
+                            break;
+                        }
+                        if(!cornerBorders.Contains(currentCorner.adjacent[j]))
+                        {
+                            //Debug.Log("special added point \n" + currentCorner.adjacent[j].index);
+                            cornerBorders.Add(currentCorner.adjacent[j]);
+                            borderIndex++;
+                            foundNext = true;
+                            nextIndex = j;
+                            if(indexWithThreeCoasts == -1) continue;
+                            else break;
+                        }
+                    }
+                    else if(NumOfAdjacentCoasts(currentCorner.adjacent[j]) == 3 && currentCorner.adjacent[j].coast)
+                    {
+                        indexWithThreeCoasts = j;
+                    }
+                    if(foundNext && indexWithThreeCoasts != -1)
+                    {
+                        // we found the next coast, and have the index of the next next coast
+                        // add it???
+                        if(!cornerBorders.Contains(currentCorner.adjacent[indexWithThreeCoasts]) && currentCorner.adjacent[nextIndex].adjacent.Contains(currentCorner.adjacent[indexWithThreeCoasts]))
+                        {
+                            //Debug.Log("special added point \n" + currentCorner.adjacent[j].index);
+                            cornerBorders.Add(currentCorner.adjacent[indexWithThreeCoasts]);
+                            borderIndex++;
+                            break;
+                        }
+                    } */
         /* THIS DIDN'T WORK
         
         // P - Point in question

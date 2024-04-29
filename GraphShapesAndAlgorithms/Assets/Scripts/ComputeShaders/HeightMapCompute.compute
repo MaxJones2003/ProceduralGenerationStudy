@@ -1,0 +1,45 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct Corner
+{
+    float2 position;
+    float height;
+};
+
+RWStructuredBuffer<float> heightMap;
+RWStructuredBuffer<Corner> corners;
+int cornersLen = 0;
+int width = 32;
+int power = 2;
+
+float SqrDist(float2 a, float2 b)
+{
+    return pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
+}
+
+float InverseDistanceWeightInterpolation(float2 query)
+{
+    float totalWeight = 0;
+    float weightedSum = 0;
+
+    for(int i = 0; i < cornersLen; i++)
+    {
+        float dist = pow(SqrDist(query, corners[i].position), 2);
+        if(dist == 0) return corners[i].height;
+
+        //float weight = power == 2 ? 1 / dist : 1 / pow(dist, power/2);
+        float weight = 1 / dist;
+        totalWeight += weight;
+        weightedSum += weight * corners[i].height;
+    }
+    return weightedSum / totalWeight;
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    int index = id.y * width + id.x;
+    //heightMap[index] = rand(id.xy);
+    heightMap[index] = InverseDistanceWeightInterpolation(id.xy);
+}

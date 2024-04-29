@@ -21,6 +21,39 @@ public class TextureDrawingTest : MonoBehaviour
 
     public Color highMoistureColor;
     public Color lowMoistureColor;
+    public void SetTexture(RenderTexture renderTexture, int width)
+    {
+        RenderTexture.active = renderTexture;
+        Texture2D heightMapData = new Texture2D(width, width, TextureFormat.RFloat, false);
+        heightMapData.ReadPixels(new Rect(0, 0, width, width), 0, 0);
+        heightMapData.Apply();
+        //RenderTexture.active = null;
+
+        texture = heightMapData;
+    }
+    Color white = Color.white;
+    Color black = Color.black;
+    public void CreateHeightmapTexture(float[,] heightmap, int width)
+    {
+        texture = new Texture2D(width, width, TextureFormat.R8, false);
+        Color[] pixels = new Color[width * width];
+
+        for (int y = 0; y < width; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float height = heightmap[x, y];
+                // Normalize height to [0, 1] range for grayscale
+                //float normalizedHeight = (height - 0f) / (1f - 0f);
+                pixels[y * width + x] = Color.Lerp(black, white, height);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        Material mat = GetComponent<Renderer>().sharedMaterial;
+        mat.mainTexture = texture;
+    }
     public void GenerateMap(List<Center> centers, List<Map.Corner> corners, List<Map.Edge> edges, int steps, int mapSize)
     {
         this.mapSize = mapSize;

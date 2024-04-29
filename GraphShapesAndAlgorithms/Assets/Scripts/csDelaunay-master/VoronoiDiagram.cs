@@ -34,7 +34,8 @@ public class VoronoiDiagram : MonoBehaviour {
     private int terrainLength = 100;
     private float heightScale = 1000f; */
 
-
+    public ComputeShader heightMapComputeShader;
+    public ComputeShader gaussianBlurComputeShader;
     Vector3[] meshVertices;
     int[] meshTriangles;
     public int SIZE = 1000;
@@ -59,6 +60,10 @@ public class VoronoiDiagram : MonoBehaviour {
         corners = map.corners;
         mapEdges = map.edges;
         grid = map.grid;
+        //float[,] hm = HeightMapMaker.ComputeShaderHeightMap(computeShader, 1, SIZE, corners);
+        
+        textureDrawer.GenerateMap(centers, corners, mapEdges, step, SIZE);
+    oceanCoasts = mapEdges.Count;
         Mesh mesh = GenerateMesh();
         GetComponent<MeshCollider>().sharedMesh = mesh;
 
@@ -70,14 +75,14 @@ public class VoronoiDiagram : MonoBehaviour {
 
         TerrainGenerator terrainGenerator = new TerrainGenerator(centers, corners, map.grid, terrain, SIZE, mesh);
         
-        terrain.terrainData = terrainGenerator.GenerateTerrain();
+        terrain.terrainData = terrainGenerator.GenerateTerrain(heightMapComputeShader, gaussianBlurComputeShader);
 
         heights = new float[SIZE, SIZE];
         heights = terrain.terrainData.GetHeights(0, 0, SIZE, SIZE);
+        textureDrawer.CreateHeightmapTexture(heights, SIZE);
 
         textureDrawer.vD = this;
         textureDrawer.map = map;
-        textureDrawer.GenerateMap(centers, corners, mapEdges, step, SIZE);
     }
     private float[,] heightMap;
     public List<Vector2f> CreateRandompoints() {
@@ -327,7 +332,7 @@ public class VoronoiDiagram : MonoBehaviour {
         }
         else if (p.coast)
         {
-            return Color.yellow; // Beach color
+            return Color.red; // Beach color
         }
         else if (p.elevation > 0.8)
         {
@@ -487,7 +492,7 @@ public class VoronoiDiagram : MonoBehaviour {
         {
             if (cornerEdges)
             {
-                Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.d0), GetBiomeColor(edge.d1), 0.5f) : Color.white;
+                Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f) : Color.white;
 
                 Gizmos.DrawLine(new Vector3(edge.v0.point.x, edge.v0.elevation * 50, edge.v0.point.y), new Vector3(edge.v1.point.x, edge.v1.elevation * 50, edge.v1.point.y));
                 Gizmos.color = biomeColors ? GetBiomeColor(edge.v0) : Color.blue;
@@ -500,7 +505,7 @@ public class VoronoiDiagram : MonoBehaviour {
             {
                 if (edge.v0 != null && edge.v1 != null)
                 {
-                    Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.v0), GetBiomeColor(edge.v1), 0.5f) : Color.black;
+                    Gizmos.color = biomeColors ? BlendColors(GetBiomeColor(edge.d0), GetBiomeColor(edge.d1), 0.5f) : Color.black;
 
                     Gizmos.DrawLine(new Vector3(edge.d0.point.x, edge.d0.elevation * 50, edge.d0.point.y), new Vector3(edge.d1.point.x, edge.d1.elevation * 50, edge.d1.point.y));
 
@@ -514,12 +519,21 @@ public class VoronoiDiagram : MonoBehaviour {
     }
     public bool drawCorners, drawCenters, drawEdges, useBiomeColors;
     public int howManyCentersToDraw = 0;
+    public int oceanCoasts = 0;
+    private static readonly Vector3 ONE = Vector3.one;
     void OnDrawGizmos()
     {
         if(map == null) return;
 
 
-        //DisplayHeightMapGizmos(drawGizmosCenter, drawGizmosSize);
+        /* //DisplayHeightMapGizmos(drawGizmosCenter, drawGizmosSize);
+        Gizmos.color = Color.red;
+        for(int j = 0; j < oceanCoasts; j++)
+        {
+            Corner v0 = mapEdges[j].v0;
+            Corner v1 = mapEdges[j].v1;
+            if(v0.coast && v1.coast) Gizmos.DrawLine(new Vector3(v0.point.x, 0, v0.point.y), new Vector3(v1.point.x, 0, v1.point.y));
+        }
         
         if(drawEdges)
         {
@@ -552,7 +566,7 @@ public class VoronoiDiagram : MonoBehaviour {
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.right, 0, bounds.top));
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.bottom), new Vector3(bounds.right, 0, bounds.bottom));
         Gizmos.DrawLine(new Vector3(bounds.left, 0, bounds.top), new Vector3(bounds.left, 0, bounds.bottom));
-        Gizmos.DrawLine(new Vector3(bounds.right, 0, bounds.top), new Vector3(bounds.right, 0, bounds.bottom));
+        Gizmos.DrawLine(new Vector3(bounds.right, 0, bounds.top), new Vector3(bounds.right, 0, bounds.bottom)); */
 
     }
 
@@ -613,7 +627,7 @@ public class TerrainGenerator
 
     Terrain terrain;
     float[,] heights;
-    public TerrainData GenerateTerrain()
+    public TerrainData GenerateTerrain(ComputeShader heightMapComputeShader, ComputeShader gaussianBlueComputeShader)
     {
         if (terrain == null)
         {
@@ -621,7 +635,7 @@ public class TerrainGenerator
             return null;
         }
 
-        return GenerateTerrainData3();
+        return GenerateTerrainData3(heightMapComputeShader, gaussianBlueComputeShader);
         
     }
 
@@ -719,15 +733,16 @@ public class TerrainGenerator
         return terrainData;
     }
 
-    TerrainData GenerateTerrainData3()
+    TerrainData GenerateTerrainData3(ComputeShader heightMapComputeShader, ComputeShader gaussianBlueComputeShader)
     {
         TerrainData terrainData = new TerrainData();
         terrainData.heightmapResolution = terrainWidth + 1;
         terrainData.size = new Vector3(terrainWidth, heightScale, terrainLength);
 
         //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalizedNew(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
-        (float, EBiomeType)[,] map = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
-        heights = ConvertToFloatArray(map);
+        //heights = HeightMapMaker.Go(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
+        heights = HeightMapMaker.ComputeShaderHeightMap(heightMapComputeShader, gaussianBlueComputeShader, 1, terrainLength + 1, corners);
+        //heights = ConvertToFloatArray(map);
         //heights = HeightMapMaker.GenerateHeightMapInterpolatedNormalized(25f, terrainLength + 1, terrainWidth + 1, corners, out float maxHeight, out float minHeight);
         terrainData.size = new Vector3(terrainData.size.x, 50, terrainData.size.z);
         terrainData.SetHeights(0, 0, heights);

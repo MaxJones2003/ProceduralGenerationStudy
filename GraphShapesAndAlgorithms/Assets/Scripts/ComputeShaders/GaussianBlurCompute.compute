@@ -1,0 +1,30 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> heightMap;
+
+
+int width = 0;
+int maxIndex = 0;
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{    
+    float sum = 0;
+    int count = 0;
+
+    for (int y = -2; y <= 2; y++)
+    {
+        for (int x = -2; x <= 2; x++)
+        {
+            int offsetIndex = (id.y + y) * width + (id.x + x);
+            if (offsetIndex >= 0 && offsetIndex < maxIndex)
+            {
+                float weight = 1.0f; // Simple Gaussian kernel, you can adjust the weights
+                sum += heightMap[offsetIndex] * weight;
+                count++;
+            }
+        }
+    }
+
+    heightMap[id.y * width + id.x] = sum / count;
+}

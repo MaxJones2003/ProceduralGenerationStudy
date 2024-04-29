@@ -20,7 +20,7 @@ namespace Map
         public bool ocean;  // ocean
         public bool water;  // lake or ocean
         public bool coast;  // touches ocean and land polygons
-        public bool border;  // at the edge of the map
+        public bool border;  // at the edge of the island
         public float elevation;  // 0.0-1.0
         public float moisture;  // 0.0-1.0
 

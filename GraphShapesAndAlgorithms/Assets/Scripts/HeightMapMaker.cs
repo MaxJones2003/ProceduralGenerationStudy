@@ -106,16 +106,16 @@ public class HeightMapMaker
         return heightMap;
     }
     
-    public static (float, EBiomeType)[,] Go(float scale, int height, int width, List<Corner> corners, out float maxHeight, out float minHeight)
+    public static float[,] Go(float scale, int height, int width, List<Corner> corners, out float maxHeight, out float minHeight)
     {
         Debug.Log("Starting HeightMapMaker");
         #region Variables
-        KDTree<Corner> tree = new KDTree<Corner>();
+        NewKDTree.KDTree tree = new NewKDTree.KDTree(corners);
         maxHeight = float.MinValue;
         minHeight = float.MaxValue;
         float maxH = float.MinValue;
         float minH = float.MaxValue;
-        (float, EBiomeType)[,] heightMap = new (float, EBiomeType)[height, width];
+        float[,] heightMap = new float[height, width];
         #endregion
 
         var stages = new List<Tuple<string, Action>>();
@@ -131,45 +131,28 @@ public class HeightMapMaker
         stages.Add(new Tuple<string, Action>("Build Tree...",
             () =>
             {
-                tree.Insert(corners);
+                //tree.Insert(corners);
             }));
 
-        int numOfNeighbors = 5;
         Corner[,][] nearestCornersMap = new Corner[height,width][];
+        List<Corner> nearestCorners = new List<Corner>();
         stages.Add(new Tuple<string, Action>("Find Nearest Point List...",
             () =>
             {
-                var totalstopwatch = Stopwatch.StartNew();
-                maxH = float.MinValue;
-                float time = 0f;
-                int iterations = 0;
-                Corner[] nearestCorners = new Corner[numOfNeighbors];
-                // Iterate over the range of x and y values
                 for (int y = 0; y < height; y++)
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        var stopwatch = Stopwatch.StartNew();
-                        // Find the nearest point in the quadtree
-                        int treversed = 0;
-                        nearestCorners = tree.FindNearestNeighbors(new Vector2f(x, y), 5);
-                        nearestCornersMap[y, x] = nearestCorners;
-                        //heightMap[y, x].Item2 = nearestCorners[0].;
-                        
-                        stopwatch.Stop();
-                        time += stopwatch.ElapsedMilliseconds;
-                        iterations++;
+                        nearestCorners = tree.NearestNeighbors(new Vector2f(x, y), 5);
+                        nearestCornersMap[y, x] = nearestCorners.ToArray();
                     }
                 }
-                totalstopwatch.Stop();
-
-                Debug.Log($"Average time per List Neighbor Search: {time/iterations} ms\nTotal Iterations: {iterations}\nTotal Time: {time} ms\nOverall Total Time: {totalstopwatch.ElapsedMilliseconds} ms");
             }));
         stages.Add(new Tuple<string, Action>("Interpolate...",
             () =>
             {
                 // Create a 2D array for the height map
-                heightMap = new (float, EBiomeType)[height, width];
+                heightMap = new float[height, width];
                 maxH = float.MinValue;
                 // Iterate over the range of x and y values
                 for (int y = 0; y < height; y++)
@@ -179,10 +162,10 @@ public class HeightMapMaker
                         // Find the nearest point in the quadtree
                         var nearestCorners = nearestCornersMap[y, x];
                         // Assign the elevation of the nearest point to the height of the point (x, y)
-                        heightMap[y, x].Item1 = IDWInterpolator(nearestCorners, new Vector2f(x, y)) * scale;
+                        heightMap[y, x] = IDWInterpolator(nearestCorners, new Vector2f(x, y)) * scale;
                         
-                        maxH = heightMap[y, x].Item1 > maxH ? heightMap[y, x].Item1 : maxH;
-                        minH = heightMap[y, x].Item1 < minH ? heightMap[y, x].Item1 : minH;
+                        maxH = heightMap[y, x] > maxH ? heightMap[y, x] : maxH;
+                        minH = heightMap[y, x] < minH ? heightMap[y, x] : minH;
                     }
                 }
             }));
@@ -193,7 +176,7 @@ public class HeightMapMaker
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        heightMap[y, x].Item1 = (heightMap[y, x].Item1 - minH) / (maxH - minH);
+                        heightMap[y, x] = (heightMap[y, x] - minH) / (maxH - minH);
                     }
                 }
             }));
@@ -202,6 +185,8 @@ public class HeightMapMaker
         {
             TimeIt(stages[i].Item1, stages[i].Item2);
         }
+
+        heightMap = SmoothArray(heightMap, 10, out maxH, out minH);
 
         maxHeight = maxH;
         minHeight = minH;
@@ -395,6 +380,91 @@ public class HeightMapMaker
         return heightMap;
     }
 
+    struct corner{
+        public Vector2f position;
+        public float height;
+    }
+    public static float[,] ComputeShaderHeightMap(ComputeShader heightMapComputeShader, ComputeShader gaussianComputeShader, float scale, int width, List<Corner> Corners)
+    {
+        int heightSize = sizeof(float);
+        int positionSize = heightSize * 2;
+
+        RenderTexture heightMapTexture = new RenderTexture(width, width, 0, RenderTextureFormat.RFloat);
+        heightMapTexture.enableRandomWrite = true;
+        heightMapTexture.Create();
+
+        int kernelHandle = heightMapComputeShader.FindKernel("CSMain");
+        heightMapComputeShader.SetTexture(kernelHandle, "heightMap", heightMapTexture);
+
+
+        corner[] corners = new corner[Corners.Count];
+        for(int i = 0; i < Corners.Count; i++)
+        {
+            corners[i] = new corner { position = Corners[i].point, height = Corners[i].elevation };
+        }
+
+        ComputeBuffer cornersBuffer = new ComputeBuffer(corners.Length, positionSize + heightSize);
+        cornersBuffer.SetData(corners);
+
+        float[] data = new float[width * width];
+        ComputeBuffer heightMapBuffer = new ComputeBuffer(width * width, sizeof(float));
+
+        
+        heightMapComputeShader.SetBuffer(0, "corners", cornersBuffer);
+        heightMapComputeShader.SetBuffer(0, "heightMap", heightMapBuffer);
+        heightMapComputeShader.SetInt("cornersLen", corners.Length);
+        heightMapComputeShader.SetInt("width", width);
+        heightMapBuffer.SetData(data); 
+
+        gaussianComputeShader.SetBuffer(0, "heightMap", heightMapBuffer);
+        gaussianComputeShader.SetInt("width", width);
+        gaussianComputeShader.SetInt("maxIndex", width * width);
+
+        heightMapComputeShader.Dispatch(0, width / 8, width / 8, 1);
+        gaussianComputeShader.Dispatch(0, width / 8, width / 8, 1);
+
+        heightMapBuffer.GetData(data);
+
+        // Convert the flat array into a 2D array
+        float[,] heightMap2D = new float[width, width];
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < width; y++)
+            {
+                heightMap2D[x, y] = data[y * width + x];
+            }
+        }
+    
+        // get the min and max values for normalizing the values between 0-1
+        float highest = float.MinValue;
+        float lowest = float.MaxValue;
+
+        for (int y = 0; y < width; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float value = heightMap2D[x, y];
+                highest = Mathf.Max(highest, value);
+                lowest = Mathf.Min(lowest, value);
+            }
+        }
+        // normalize the values
+        float range = highest - lowest;
+        for (int y = 0; y < width; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                heightMap2D[x, y] = (heightMap2D[x, y] - lowest) / range;
+            }
+        } 
+
+
+
+        cornersBuffer.Release();
+        heightMapBuffer.Release();
+
+        return heightMap2D;
+    }
     public static float IDWInterpolator(Corner[] corners, Vector2f queryPoint, float power = 2)
     {
         float totalWeight = 0;
@@ -446,6 +516,50 @@ public class HeightMapMaker
         return weightedSum / totalWeight;
     }
 
+    public static float[,] SmoothArray(float[,] input, int filterSize, out float minValue, out float maxValue)
+    {
+        int height = input.GetLength(0);
+        int width = input.GetLength(1);
+        float[,] output = new float[height, width];
+
+        minValue = float.MaxValue;
+        maxValue = float.MinValue;
+
+        for (int y =  0; y < height; y++)
+        {
+            for (int x =  0; x < width; x++)
+            {
+                float sum =  0;
+                int count =  0;
+
+                for (int dy = -filterSize /  2; dy <= filterSize /  2; dy++)
+                {
+                    for (int dx = -filterSize /  2; dx <= filterSize /  2; dx++)
+                    {
+                        int newY = y + dy;
+                        int newX = x + dx;
+
+                        // Check if the new coordinates are within the array bounds
+                        if (newY >=  0 && newY < height && newX >=  0 && newX < width)
+                        {
+                            sum += input[newY, newX];
+                            count++;
+                        }
+                    }
+                }
+
+                // Calculate the average and assign it to the output array
+                float average = sum / count;
+                output[y, x] = average;
+
+                // Update min and max values
+                minValue = Math.Min(minValue, average);
+                maxValue = Math.Max(maxValue, average);
+            }
+        }
+
+        return output;
+    }
 
 
     /* public float[,] GenerateHeightMap(float scale, int height, int width, List<Corner> corners)
