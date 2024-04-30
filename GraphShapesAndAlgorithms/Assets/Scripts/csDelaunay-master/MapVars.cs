@@ -82,6 +82,9 @@ namespace Map
                 case IslandShapeEnum.Blob:
                     islandShape = IslandShape.MakeBlob(seed);
                     break;
+                case IslandShapeEnum.Random:
+                    islandShape = IslandShape.MakeRandom(seed);
+                    break;
                 default:
                     throw new ArgumentException("Invalid island type: " + islandShapeEnum);
             }

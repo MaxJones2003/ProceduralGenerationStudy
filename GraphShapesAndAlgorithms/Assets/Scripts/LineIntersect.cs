@@ -72,6 +72,7 @@ public class LineIntersect : MonoBehaviour
 
     public void SetUp(List<Map.Corner> corners)
     {
+        return;
         polyPoints = GetBorders(corners);
         //for (int i = 0; i < 1; i++) OrderCornersClockwise();
         //Order();
@@ -179,6 +180,7 @@ public class LineIntersect : MonoBehaviour
 
     public bool IsInside(Vector2f point)
     {
+        return false;
         return poly.InsideBool(point);
     }
     public Vector2f FindIntersection(Vector2f outside, Vector2f inside, Vector2f boundA, Vector2f boundB)

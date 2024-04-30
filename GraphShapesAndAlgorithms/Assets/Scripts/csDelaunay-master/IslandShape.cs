@@ -6,7 +6,8 @@ public enum IslandShapeEnum
     Radial,
     Perlin,
     Square,
-    Blob
+    Blob,
+    Random
 }
 
 public class IslandShape
@@ -78,6 +79,17 @@ public class IslandShape
             bool eye2 = new Vector2(q.x + 0.2f, q.y / 2 + 0.2f).magnitude < 0.05f;
             bool body = q.magnitude < 0.8f - 0.18f * Mathf.Sin(5 * Mathf.Atan2(q.y, q.x));
             return body && !eye1 && !eye2;
+        };
+    }
+
+    public static Func<Vector2f, bool> MakeRandom(int seed)
+    {
+        return q =>
+        {
+            System.Random rand = new System.Random(seed);
+            double offset = rand.NextDouble();
+            double val = Math.Sin(offset);
+            return val < 0.75;
         };
     }
 }
