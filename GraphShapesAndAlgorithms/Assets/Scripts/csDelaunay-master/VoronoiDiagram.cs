@@ -19,8 +19,7 @@ public class VoronoiDiagram : MonoBehaviour {
     //private Dictionary<Vector2f, Site> boundedSites;
     private List<csDelaunay.Edge> edges;
     public string seed;
-    Rectf bounds;
-    public Map.Map map;
+    public VoronoiMapData map;
     Mesh mesh;
     MeshFilter meshFilter;
     MeshCollider meshCollider;
@@ -52,10 +51,9 @@ public class VoronoiDiagram : MonoBehaviour {
     }
     public void GenerateVoronoi()
     {
-        string newSeed = generateRandom ? Seed.Instance.CreateRandomSeed(16) : seed;
-        int seedInt = Seed.Instance.InitializeRandom(newSeed);
-        bounds = new Rectf(0,0,SIZE,SIZE);
-        map = new Map.Map(polygonNumber, SIZE, iterations, stage);
+        string newSeed = generateRandom ? Seed.CreateRandomSeed(16) : seed;
+        int seedInt = Seed.InitializeRandom(newSeed);
+        map = new VoronoiMapData(polygonNumber, SIZE, iterations, stage);
         map.NewIsland(islandShape, polygonNumber, seedInt);
         centers = map.centers;
         corners = map.corners;

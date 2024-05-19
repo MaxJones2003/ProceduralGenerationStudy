@@ -43,7 +43,7 @@ public class HeightMapMaker
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        int trev = 0;
+                        //int trev = 0;
                         var pos = new Vector2f(x, y);
                         // Find the nearest point in the quadtree
                         var nearestCenters = tree.FindNearestNeighbors(pos, 5);
@@ -389,11 +389,13 @@ public class HeightMapMaker
         int heightSize = sizeof(float);
         int positionSize = heightSize * 2;
 
-        RenderTexture heightMapTexture = new RenderTexture(width, width, 0, RenderTextureFormat.RFloat);
-        heightMapTexture.enableRandomWrite = true;
+        RenderTexture heightMapTexture = new RenderTexture(width, width, 0, RenderTextureFormat.RFloat)
+        {
+            enableRandomWrite = true
+        };
         heightMapTexture.Create();
 
-        int kernelHandle = heightMapComputeShader.FindKernel("CSMain");
+        int kernelHandle = heightMapComputeShader.FindKernel("HeightMap");
         heightMapComputeShader.SetTexture(kernelHandle, "heightMap", heightMapTexture);
 
 

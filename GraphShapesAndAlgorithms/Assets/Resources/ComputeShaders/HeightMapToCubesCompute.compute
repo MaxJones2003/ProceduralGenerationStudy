@@ -1,0 +1,56 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel HeightToCube
+
+RWStructuredBuffer<float> _InHeights;
+RWStructuredBuffer<float> _OutWeights;
+RWStructuredBuffer<float4> points;
+
+int2 _Offset;
+int _Width = 16;
+
+int _numOfPointsXAxis = 16;
+int _numOfPointsYAxis = 16;
+int _numOfPointsZAxis = 16;
+
+// Get the heightmap array index from 2d vector coordinate
+int indexFromCoord2(int2 coord)
+{
+    return coord.y * _Width + coord.x;
+}
+
+// Get the cubemap array index from 3d vector coordiante
+int indexFromCoord3(int x, int y, int z)
+{
+    //return coord.x + _ChunkSizeX * (coord.z + _ChunkSizeZ * coord.y);
+    return z * _numOfPointsZAxis * _numOfPointsYAxis + y * _numOfPointsXAxis + x;
+}
+[numthreads(8,8,8)]
+void HeightToCube (uint3 id : SV_DispatchThreadID)
+{
+    // find the index of the height map from the x and z
+    int index = indexFromCoord2(id.xz + _Offset);
+
+    // get the value of the height based off the index
+    float currentHeight = _InHeights[index];
+    float distToSufrace;
+    float y = id.y;
+    // calculate the distance from the surface for the marching cubes weights
+    if (y <= currentHeight - 0.5)
+        distToSufrace = 0;
+    else if (y > currentHeight + 0.5)
+        distToSufrace = 1;
+    else if (y > currentHeight)
+        distToSufrace = y - currentHeight;
+    else
+        distToSufrace = currentHeight - y;
+
+    // set the marching cubes weight value at the index based on the xyz position
+    int index = indexFromCoord3(id.x, id.y, id.z);
+    _OutWeights[index] = distToSufrace;
+
+    int3 pos = id;
+    pos.x += _Offset.x;
+    pos.z += _offset.y;
+
+    points[index] = float4(pos, distToSufrace);
+}

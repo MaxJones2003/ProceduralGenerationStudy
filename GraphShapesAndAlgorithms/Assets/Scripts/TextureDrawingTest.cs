@@ -11,7 +11,7 @@ public class TextureDrawingTest : MonoBehaviour
     public float minElevation = 0f;
     public float maxElevation = 1f;
     Texture2D texture;
-    public Map.Map map;
+    public VoronoiMapData map;
     public bool testInside;
     public bool testRadial;
     public bool drawRivers;

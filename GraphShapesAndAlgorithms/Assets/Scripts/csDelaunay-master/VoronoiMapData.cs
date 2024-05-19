@@ -14,7 +14,7 @@ using System.Diagnostics;
 namespace Map
 {
         // https://github.com/amitp/mapgen2/blob/master/Map.as
-    public class Map
+    public class VoronoiMapData
     {
         static public float LAKE_THRESHOLD = 0.3f;  // 0 to 1, fraction of water corners for water polygon
         int SIZE;
@@ -47,7 +47,7 @@ namespace Map
         /// </summary>
         public Grid grid;
 
-        public Map(int numOfPoints, int SIZE, int iterations, int maxStage)
+        public VoronoiMapData(int numOfPoints, int SIZE, int iterations, int maxStage = 5)
         {
             numPoints = numOfPoints;
             this.SIZE = SIZE;
@@ -56,15 +56,16 @@ namespace Map
             goStage = maxStage;
             Reset();
         }
-         // Random parameters governing the overall shape of the island
-         int goStage = 4;
+        // Random parameters governing the overall shape of the island
+        int goStage = 4;
         public void  NewIsland(IslandShapeEnum islandShapeEnum, int numPoints_, int seed) 
         {
             numPoints = numPoints_;
             SetIslandShape(islandShapeEnum, seed);
             numPoints = numPoints_;
             mapRandom = new System.Random(seed);
-            Go(0, goStage);
+            //Go(0, goStage);
+            Create();
         }
         private void SetIslandShape(IslandShapeEnum islandShapeEnum, int seed)
         {
@@ -228,6 +229,62 @@ namespace Map
             {
                 TimeIt(stages[i].Item1, stages[i].Item2);
             }
+        }
+        public void Create()
+        {
+            // Generate the initial random set of points
+            Reset();
+            points = CreateRandomPoints(numPoints);
+
+            // Create a graph structure from the Voronoi edge list.
+            var voronoi = GenerateVoronoi(points, lloydIterations);
+            BuildGraph(points, voronoi);
+            voronoi.Dispose();
+            points = null;
+
+
+            // Determine the elevations and water at Voronoi corners.
+            AssignCornerElevations();
+
+            // Determine polygon and corner type: ocean, coast, land.
+            AssignOceanCoastAndLand();
+
+            // Rescale elevations so that the highest is 1.0.
+            // Assign elevations to non-land corners.
+            // Polygon elevations are the average of their corners.
+            RedistributeElevations(LandCorners(corners));
+
+            // Assign elevations to non-land corners
+            foreach (var q in corners)
+            {
+                if (q.ocean || q.coast)
+                {
+                    q.elevation = 0.0f;
+                }
+            }
+
+            // Polygon elevations are the average of their corners
+            AssignPolygonElevations();
+
+            // Determine downslope paths.
+            CalculateDownslopes();
+
+            // Determine watersheds.
+            CalculateWatersheds();
+
+            // Create rivers.
+            CreateRivers();
+
+            // Determine moisture at corners, starting at rivers
+            // and lakes, but not oceans. Then redistribute
+            // moisture to cover the entire range evenly from 0.0
+            // to 1.0. Then assign polygon moisture as the average
+            // of the corner moisture.
+            AssignCornerMoisture();
+            RedistributeMoisture(LandCorners(corners));
+            AssignPolygonMoisture();
+
+            AssignBiomes();
         }
 
         public List<Vector2f> CreateRandomPoints(int size) 
